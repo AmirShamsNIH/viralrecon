@@ -177,6 +177,94 @@ cd viralrecon
 
 ---
 
+### 2.5 Platform profile: Biowulf
+
+The pipeline is developed and validated on NIH Biowulf. Everything below has to
+be in place before a run; most of it already is, and the paths are recorded in
+`config/containers.json` and `config/config.json` rather than discovered at
+runtime.
+
+**Access**
+
+| need | detail |
+|---|---|
+| Biowulf account | with access to `/data/RTB_GRS` |
+| SLURM partition | `norm` — the only partition `cluster.json` uses |
+| Shared references | read access to `/data/OpenOmics/SIFs` |
+
+**Software on the submitting shell**
+
+```bash
+module load python/3.10        # provides snakemake 7.30.1
+```
+
+Snakemake is the one tool that does *not* come from a container — it is the
+thing that launches the containers. The master job inherits the submitting
+environment, so if `snakemake` is not on your `PATH` when you submit, the master
+job fails immediately. Everything else is loaded by the job itself: the master
+script runs `module load singularity` and no rule loads anything at all.
+
+**Data that must exist on disk**
+
+| path | what it is |
+|---|---|
+| `/fdb/kraken/20260226_standard_kraken2` | Kraken2 standard database, ~98 GB. Biowulf shared, nothing to install |
+| `/data/RTB_GRS/references/krona/taxonomy` | Krona taxonomy, staged once. The Krona image ships a placeholder that produces empty charts |
+| `/data/OpenOmics/SIFs` | shared lab image library |
+| `/data/RTB_GRS/references/singularity` | images built or pulled for this pipeline |
+
+**Which node does what** — this trips people up, because the two capabilities
+live on opposite hosts:
+
+| task | where | why |
+|---|---|---|
+| `viralrecon build` | **compute node** (`sbatch`) | needs `singularity`, which the login node does not have |
+| `viralrecon run` | either — it only submits | the master job it creates runs on a compute node |
+| `git push` | **login node** | compute nodes cannot resolve external hostnames at all |
+
+Compute nodes have no direct internet. `viralrecon build` downloads a reference
+from NCBI and a Nextclade dataset, so a build job must set the session proxy:
+
+```bash
+export http_proxy=http://dtn20-e0:3128
+export https_proxy=http://dtn20-e0:3128
+```
+
+That covers HTTP and HTTPS only. SSH is not proxied, which is why a `git push`
+over an SSH remote has to run from the login node.
+
+**A complete run**, as a single batch script:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --cpus-per-task=4 --mem=16g --time=2:00:00
+
+VIRALRECON=/data/RTB_GRS/internal/pipeline/viralrecon/viralrecon
+BASE=/data/RTB_GRS/IDSS_Projects/<project>
+REF=$BASE/target_reference
+OUT=$BASE/viralrecon_execution
+
+module load singularity
+export http_proxy=http://dtn20-e0:3128
+export https_proxy=http://dtn20-e0:3128
+
+$VIRALRECON build --virus SARS --accession NC_045512.2 --output "$REF" \
+    --nextclade-dataset sars-cov-2
+
+$VIRALRECON run --input /path/to/reads/*_R[12]_001.fastq.gz \
+    --output "$OUT" --genome "$REF/genome.json" \
+    --targets SARS_NC_045512.2
+```
+
+Submit it with `sbatch`, having run `module load python/3.10` first so the
+`run` step can find Snakemake.
+
+**Scratch.** The pipeline keeps its temporary files in `$OUTDIR/tmp` rather than
+`lscratch`, so no `--gres=lscratch` allocation is needed. One exception is
+deliberate: `pangolin_lineage` redirects `TMPDIR` to a node-local path, because
+scorpio opens a Unix domain socket for `multiprocessing` and those do not work
+on GPFS.
+
 ## 3. Run the pipeline
 
 ### 3.1 Build a reference
