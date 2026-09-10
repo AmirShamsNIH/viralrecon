@@ -341,15 +341,18 @@ def setup(sub_args, ifiles, repo_path, output_path):
             if plat != platform:
                 del refs[plat]
 
-    for _map in list(config.get("tools", {}).values()):
-        for plat in list(_map.keys()):
-            if plat != platform:
-                del _map[plat]
-
-    for _map in list(config.get("paths", {}).values()):
-        for plat in list(_map.keys()):
-            if plat != platform:
-                del _map[plat]
+    # tools and paths are keyed <name> -> <platform> -> value, alongside
+    # commentary and metadata keys that are not platforms. Only mappings are
+    # trimmed, and only their platform keys: a "_comment" list or a
+    # "_parameter_stage" string is neither, and treating one as a platform map
+    # is what an earlier version did until it hit .keys() on a list.
+    for _section in ("tools", "paths"):
+        for _name, _map in list(config.get(_section, {}).items()):
+            if _name.startswith("_") or not isinstance(_map, dict):
+                continue
+            for plat in list(_map.keys()):
+                if plat != platform and not plat.startswith("_"):
+                    del _map[plat]
 
     return config
 
