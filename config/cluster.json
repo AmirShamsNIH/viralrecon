@@ -1,0 +1,312 @@
+{
+    "__default__": {
+        "partition": "norm",
+        "threads": "4",
+        "mem": "16g",
+        "time": "0-08:00:00",
+        "jobname": "viralrecon.{rule}",
+        "output": "slurm/{rule}.%j.out",
+        "error": "slurm/{rule}.%j.err"
+    },
+    "custom_virmapDB": {
+        "threads": "8",
+        "mem": "32g",
+        "time": "0-12:00:00",
+        "output": "build_environment/{rule}.%j.out",
+        "error": "build_environment/{rule}.%j.err"
+    },
+    "nextclade_dataset": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "build_environment/{rule}.%j.out",
+        "error": "build_environment/{rule}.%j.err"
+    },
+    "bbtools_reformat": {
+        "threads": "8",
+        "mem": "32g",
+        "time": "0-04:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "fastp_trim": {
+        "threads": "8",
+        "mem": "16g",
+        "time": "0-04:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "kraken2_decon": {
+        "threads": "4",
+        "mem": "32g",
+        "time": "0-08:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "kraken2_classify": {
+        "threads": "16",
+        "mem": "150g",
+        "time": "0-08:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "krona_plot": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "fastqc_pre": {
+        "threads": "4",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "pre_process/{rule}.%j.out",
+        "error": "pre_process/{rule}.%j.err"
+    },
+    "bowtie2_map": {
+        "threads": "16",
+        "mem": "32g",
+        "time": "0-08:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "mark_duplicates": {
+        "threads": "4",
+        "mem": "16g",
+        "time": "0-04:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "flagstat_align": {
+        "threads": "4",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "idxstats_align": {
+        "threads": "4",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "mosdepth_align": {
+        "threads": "4",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "picard_collect_metrics": {
+        "threads": "4",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "alignment/{rule}.%j.out",
+        "error": "alignment/{rule}.%j.err"
+    },
+    "freebayes_haplotypecaller": {
+        "threads": "8",
+        "mem": "64g",
+        "time": "0-12:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "freebayes_call": {
+        "threads": "8",
+        "mem": "24g",
+        "time": "0-12:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bcftools_norm": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "snpeff_annotate": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bgzip_snpeff": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "gatk_variants_table": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bgzip_snpsift": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bcftools_stats": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-01:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "snpsift_annotate": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bcftools_consensus": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-01:00:00",
+        "output": "variant_calling/{rule}.%j.out",
+        "error": "variant_calling/{rule}.%j.err"
+    },
+    "bcftools_merge": {
+        "threads": "8",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "snpeff_aggregate": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "bgzip_aggregate": {
+        "threads": "2",
+        "mem": "4g",
+        "time": "0-02:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "gatk_aggregate_table": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "collect_mapping_summary": {
+        "threads": "1",
+        "mem": "4g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "quast_consensus": {
+        "threads": "8",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "make_variants_long_table": {
+        "threads": "1",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "multiqc_report": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "make_igv_session": {
+        "threads": "1",
+        "mem": "4g",
+        "time": "0-00:30:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "final_report": {
+        "threads": "1",
+        "mem": "4g",
+        "time": "0-00:30:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "pangolin_lineage": {
+        "threads": "4",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "lineage/{rule}.%j.out",
+        "error": "lineage/{rule}.%j.err"
+    },
+    "nextclade_clade": {
+        "threads": "4",
+        "mem": "8g",
+        "time": "0-02:00:00",
+        "output": "lineage/{rule}.%j.out",
+        "error": "lineage/{rule}.%j.err"
+    },
+    "freyja_demix": {
+        "threads": "8",
+        "mem": "32g",
+        "time": "0-12:00:00",
+        "output": "lineage/{rule}.%j.out",
+        "error": "lineage/{rule}.%j.err"
+    },
+    "make_variants_matrix": {
+        "threads": "1",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "bcftools_merge_filtered": {
+        "threads": "8",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "gatk_aggregate_table_filtered": {
+        "threads": "2",
+        "mem": "8g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "plot_report_figures": {
+        "threads": "1",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "igv_report": {
+        "threads": "1",
+        "mem": "16g",
+        "time": "0-04:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    },
+    "igv_downsample_bam": {
+        "threads": "4",
+        "mem": "8g",
+        "time": "0-01:00:00",
+        "output": "report/{rule}.%j.out",
+        "error": "report/{rule}.%j.err"
+    }
+}

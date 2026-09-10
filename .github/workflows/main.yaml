@@ -1,0 +1,96 @@
+name: lint-and-dryrun
+
+# The DAG broke five times during the container migration, every time in the
+# same way: a rule was split, its output stopped being referenced by anything,
+# and Snakemake silently dropped it. No error - just fewer jobs. A dry run is
+# the only thing that surfaces that, and it costs seconds.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  dryrun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install snakemake
+        run: pip install --quiet 'snakemake==7.32.4' pyyaml
+
+      - name: Config files are valid JSON
+        run: |
+          for f in config/*.json; do
+            python -c "import json,sys; json.load(open('$f'))" || { echo "INVALID: $f"; exit 1; }
+            echo "ok: $f"
+          done
+
+      - name: MultiQC config is valid YAML
+        run: python -c "import yaml; yaml.safe_load(open('resources/multiqc_config.yaml')); print('ok')"
+
+      - name: Python helpers compile
+        run: python -m compileall -q workflow/scripts src
+
+      - name: Every rule with a shell declares a container
+        run: |
+          python - <<'PY'
+          import glob, re, sys
+          # custom_virmapDB is `ln -sf` and shell builtins only; it is a
+          # localrule and deliberately has no image.
+          EXEMPT = {"custom_virmapDB"}
+          missing = []
+          for f in glob.glob("workflow/rules/*.smk"):
+              s = open(f).read()
+              for m in re.finditer(r"^rule (\w+):", s, re.M):
+                  nxt = s.find("\nrule ", m.start() + 1)
+                  blk = s[m.start(): nxt if nxt > 0 else len(s)]
+                  if "shell:" in blk and "container:" not in blk and m.group(1) not in EXEMPT:
+                      missing.append("%s:%s" % (f, m.group(1)))
+          if missing:
+              sys.exit("rules with a shell but no container: %s" % missing)
+          print("all shell rules are containerised")
+          PY
+
+      - name: No module load outside the Singularity bootstrap
+        run: |
+          if grep -rn "module_load\|module load" workflow/rules/ src/*.py \
+               | grep -v "singularity" | grep -v "^\s*#"; then
+            echo "module load found outside the Singularity bootstrap"; exit 1
+          fi
+          echo "no stray module load"
+
+      - name: No unescaped braces in shell-body comments
+        run: |
+          python - <<'PY'
+          import glob, re, sys
+          # Snakemake formats the whole shell string, comments included, so a
+          # bare {placeholder} in a comment raises NameError at job-script
+          # build time - long after the DAG has resolved cleanly.
+          bad = []
+          for f in glob.glob("workflow/rules/*.smk"):
+              s = open(f).read()
+              for m in re.finditer(r'shell: """(.*?)"""', s, re.S):
+                  for line in m.group(1).split("\n"):
+                      t = line.strip()
+                      if t.startswith("#") and re.search(r"(?<!\{)\{[a-z_]+\}(?!\})", t):
+                          bad.append("%s: %s" % (f, t[:70]))
+          if bad:
+              sys.exit("unescaped braces in shell comments:\n  " + "\n  ".join(bad))
+          print("no unescaped braces in shell comments")
+          PY
+
+      - name: Temporary files stay inside the run directory
+        run: |
+          if grep -rn "lscratch" workflow/rules/ config/cluster.json src/*.sh 2>/dev/null \
+               | grep -v "^\s*#" | grep -v "not in node-local"; then
+            echo "lscratch referenced; temp belongs in <outdir>/tmp"; exit 1
+          fi
+          echo "no lscratch usage"
+
+      - name: Snakemake dry run resolves the DAG
+        run: |
+          bash .tests/dryrun.sh

@@ -1,0 +1,14 @@
+{
+    "_comment": [
+        "Template only. Real targets are written by `viralrecon build` into its",
+        "own --output/genome.json, which is passed to `viralrecon run --genome`.",
+        "Only references.target is read by the workflow; the contamination and",
+        "kraken2 sections were used by the pre-Kraken2 bowtie2 decontamination",
+        "and have no readers, so they are not carried here."
+    ],
+    "references": {
+        "target": {
+            "BIOWULF": {}
+        }
+    }
+}

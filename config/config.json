@@ -1,0 +1,117 @@
+{
+    "options": {},
+    "pipeline": {
+        "execution_order": [
+            "pre_process",
+            "alignment",
+            "variant_calling",
+            "report"
+        ],
+        "stages": {
+            "pre_process": [
+                "bbtools_reformat",
+                "fastp_trim",
+                "kraken2_classify",
+                "kraken2_decon",
+                "krona_plot",
+                "fastqc_pre"
+            ],
+            "alignment": [
+                "bowtie2_map",
+                "mark_duplicates",
+                "flagstat_align",
+                "idxstats_align",
+                "mosdepth_align",
+                "picard_collect_metrics"
+            ],
+            "variant_calling": [
+                "freebayes_haplotypecaller",
+                "bcftools_norm",
+                "bcftools_stats",
+                "snpsift_annotate",
+                "bcftools_consensus"
+            ],
+            "report": [
+                "bcftools_merge",
+                "snpeff_aggregate",
+                "bgzip_aggregate",
+                "gatk_aggregate_table",
+                "collect_mapping_summary",
+                "multiqc_report",
+                "quast_consensus",
+                "make_variants_long_table",
+                "make_variants_matrix",
+                "bcftools_merge_filtered",
+                "gatk_aggregate_table_filtered",
+                "plot_report_figures",
+                "igv_report",
+                "igv_downsample_bam"
+            ],
+            "lineage": [
+                "pangolin_lineage",
+                "nextclade_clade",
+                "freyja_demix"
+            ]
+        }
+    },
+    "parameters": {
+        "pre_process": {
+            "bbtools_reformat": "overwrite=t crashjunk=f fixjunk=t iupacToN=t ignorebadquality=t tossbrokenreads=t minlength=30 maxcalledquality=41 mincalledquality=2",
+            "fastp_trim": "--length_required 30 --compression 4 --detect_adapter_for_pe --overrepresentation_analysis --low_complexity_filter --complexity_threshold 30 --unqualified_percent_limit 40 --qualified_quality_phred 20",
+            "kraken2_decon": "--memory-mapping --gzip-compressed",
+            "kraken2_decon_db": "/fdb/kraken/20260226_standard_kraken2",
+            "kraken2_decon_taxids": "9606 10847 2",
+            "kraken2_profile_taxids": "",
+            "krona_taxonomy": "/data/RTB_GRS/references/krona/taxonomy",
+            "fastqc": "--extract"
+        },
+        "alignment": {
+            "bowtie2_map": "--local -X 1500",
+            "picard_markdup": "REMOVE_DUPLICATES=false ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT",
+            "skip_markduplicates": "true",
+            "samtools_filter": "-F 0x004 -F 0x0100 -F 0x0800",
+            "min_mapped_reads": "1000",
+            "fastqc": "--extract",
+            "mosdepth": "--flag 772 --by 200 --quantize 0:10:50:100:",
+            "picard_collect_metrics": "VALIDATION_STRINGENCY=LENIENT"
+        },
+        "variant_calling": {
+            "freebayes": "--pooled-continuous --min-alternate-fraction 0.02 --min-alternate-count 5 --min-base-quality 20 --min-mapping-quality 20 --use-duplicate-reads",
+            "freebayes_max_reads": "5000000",
+            "bcftools_norm": "-m -any",
+            "snpeff": "-no-intergenic -no-upstream -no-downstream -no-utr",
+            "gatk_variants_to_table": "-F CHROM -F POS -F REF -F ALT -F QUAL -F DP -GF AD -GF DP",
+            "bcftools_stats": "",
+            "snpsift_filter": "(QUAL >= 20) & (DP >= 10)",
+            "snpsift_fields": "CHROM POS REF ALT QUAL DP ANN[0].GENE ANN[0].EFFECT ANN[0].HGVS_P",
+            "bcftools_consensus": "--iupac-codes",
+            "consensus_min_depth": "10",
+            "min_genome_coverage": "0.80"
+        },
+        "report": {
+            "bcftools_merge": "",
+            "snpeff": "-no-intergenic -no-upstream -no-downstream -no-utr",
+            "gatk_variants_to_table": "-F CHROM -F POS -F TYPE -F REF -F ALT -F ANN -F QUAL -F DP -GF AD -GF DP",
+            "multiqc": "",
+            "quast": "--min-contig 0 --no-icarus",
+            "igv_report_flanking": "150",
+            "igv_report_subsample": "100",
+            "igv_target_depth": "200"
+        },
+        "lineage": {
+            "pangolin": "--analysis-mode accurate",
+            "nextclade": "",
+            "freyja_variants": "--minq 20",
+            "freyja_demix": "",
+            "freyja_boot": "--nb 100",
+            "skip_freyja_boot": "false",
+            "freyja_targets": [
+                "NC_045512"
+            ],
+            "pangolin_targets": [
+                "NC_045512",
+                "PP115423"
+            ]
+        }
+    }
+}

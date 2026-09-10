@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Snakemake
+.snakemake/
+*.smk.py
+
+# Pipeline outputs (never commit analysis results)
+logfiles/
+inputs/
+tmp/
+sifs/
+ref_db/
+*/pre_process/
+*/alignment/
+*/variant_calling/
+report/
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Test outputs
+.tests/output/
+"{log}"

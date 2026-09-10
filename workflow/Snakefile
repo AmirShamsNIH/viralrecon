@@ -1,0 +1,264 @@
+# ############################################################################
+# viralrecon — main Snakefile
+# Viral variation analysis pipeline (OpenOmics/baseline structure)
+# ############################################################################
+#
+# Execution DAG
+# -------------
+#   inputs/{sample}.R1/R2.fastq.gz
+#       │
+#       ▼  [per sample — shared across all targets]
+#   pre_process:  bbtools_reformat -> fastp_trim -> kraken2_decon -> fastqc/multiqc
+#       │
+#       ├──►  [per sample × target — parallel branches]
+#       │     alignment:      bowtie2_map → flagstat/idxstats → fastqc/multiqc
+#       │
+#       ├──►  variant_calling: freebayes → snpEff → GATK VariantsToTable
+#       │
+#       ├──►  report/{target}/: bcftools_merge (all samples) -> snpEff -> multiqc
+#       │
+#       └──►  lineage/{target}/: pangolin + nextclade + freyja  [SARS only]
+#
+# Configuration
+# -------------
+# A. Inputs   → read from {WORKPATH}/inputs/{sample}.R1/R2.fastq.gz
+# B. Outputs  → write under {WORKPATH}/{sample}/<stage>/{target}/
+# C. Targets  → set by config["targets"] (CLI --targets or all of genome.json)
+# D. Resources→ every rule uses allocated() against config/cluster.json
+# E. Wiring   → add final outputs to rule all; add new rules via include:
+#
+# ############################################################################
+
+import json
+import os
+from os.path import join
+
+from snakemake.utils import validate
+
+from scripts.common import allocated, provided, references, str_bool
+
+# ── Global config ────────────────────────────────────────────────────────────
+configfile: "config.json"
+
+# Validate before anything else touches config. A missing or mistyped key
+# otherwise surfaces as a KeyError inside a rule, on a compute node, minutes
+# into a run; this names the key at DAG-build time instead. Failure to validate
+# is not fatal on its own - an older Snakemake or a missing jsonschema should
+# not block a run - but a genuine schema violation is.
+try:
+    validate(config, join(workflow.basedir, "schemas", "config.schema.yaml"))
+except WorkflowError:
+    raise
+except Exception as _exc:                     # validation unavailable, not failed
+    print("config schema not checked: {}".format(_exc))
+
+WORKPATH  = config["options"]["output"]
+SAMPLES   = config["samples"]
+PLATFORM  = config["options"].get("platform", "BIOWULF")
+PAIRED    = config["project"]["paired"]
+
+# TARGETS: use the explicit list written by run.py (subset or all of genome.json)
+_all_targets = list(config["references"]["target"][PLATFORM].keys())
+_selected    = config.get("targets", None)
+if _selected:
+    TARGETS = [t for t in _selected if t in _all_targets]
+    _missing = [t for t in _selected if t not in _all_targets]
+    if _missing:
+        raise ValueError(
+            "Requested target(s) not in genome.json for platform {}: {}\n"
+            "Available: {}".format(PLATFORM, _missing, _all_targets)
+        )
+else:
+    TARGETS = _all_targets
+
+if not TARGETS:
+    raise ValueError(
+        "No targets resolved for platform {}. "
+        "Register references with: viralrecon genome --name <NAME> --output <DIR>"
+        .format(PLATFORM)
+    )
+
+# Lineage tools are SARS-CoV-2 specific: the Pango and Nextclade databases and
+# the Freyja barcodes all describe SARS-CoV-2 and nothing else. Targets are
+# matched on accession rather than on a "SARS" name prefix, because a prefix
+# also catches SARS-CoV-1 (NC_004718) and any other sarbecovirus a user
+# registers, which would be handed to callers that cannot describe them.
+# Each target's own taxid, recorded by `viralrecon build`, so the Kraken2
+# composition profile breaks out whichever viruses this run is actually about.
+# The pipeline is not coronavirus-specific; hardcoding one virus's taxid here
+# would report the wrong organism for every other target.
+# Restricted to the targets this run selected, not every entry in genome.json.
+# genome.json is an accumulating registry shared across runs, so reading all of
+# it made profile_ids - and therefore kraken2_decon's params - change whenever
+# any unrelated reference was registered. That invalidated the depleted FASTQs
+# every alignment consumes and forced a full re-run of finished output
+# directories that had nothing to do with the new reference.
+TARGET_TAXIDS = sorted({
+    str(_e["taxid"])
+    for _t, _e in config["references"]["target"].get(PLATFORM, {}).items()
+    if _t in TARGETS and isinstance(_e, dict) and _e.get("taxid")
+})
+
+# Each lineage caller gets a gate matching what it can actually describe.
+#
+# pangolin: Pango nomenclature exists only for SARS-CoV-2 and its database is
+# baked into the image, so this is a list of accessions, not data.
+# Default empty, not ["NC_045512"]: a config that forgets this should run no
+# lineage calls rather than quietly assume every target is SARS-CoV-2.
+_PANGOLIN_MATCH  = config["parameters"]["lineage"].get("pangolin_targets", [])
+PANGOLIN_TARGETS = [t for t in TARGETS if any(m in t for m in _PANGOLIN_MATCH)]
+
+# nextclade: dataset-driven, and the dataset belongs to the reference. A target
+# carries its own dataset path in genome.json, written by `viralrecon build
+# --nextclade-dataset`. Presence of that path is the gate: a target without one
+# is skipped rather than described against the wrong virus's dataset, which
+# would return confident nonsense instead of failing.
+_TARGET_REFS = config["references"]["target"][PLATFORM]
+
+def nextclade_dataset_for(target):
+    entry = _TARGET_REFS.get(target) or {}
+    return entry.get("nextclade_dataset", "")
+
+NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
+
+# Freyja needs a narrower gate than pangolin and nextclade, which is not a
+# configuration nicety but a coordinate constraint. Pangolin and nextclade read
+# a consensus FASTA and are indifferent to which reference produced it. Freyja
+# reads a BAM in reference coordinates and matches it against barcodes keyed to
+# Wuhan-Hu-1, so against any other reference its answer is meaningless even
+# when it does not crash. Running PP115423.1 (29,721 bp) through it raised
+# KeyError 29735 - a Wuhan coordinate that does not exist in that genome.
+_FREYJA_MATCH  = config["parameters"]["lineage"].get("freyja_targets", [])
+FREYJA_TARGETS = [t for t in TARGETS if any(m in t for m in _FREYJA_MATCH)]
+
+# Union, for the places that only ask "does this target have any lineage
+# output at all" - the final_report lineage directory and the MultiQC ordering.
+LINEAGE_TARGETS = [t for t in TARGETS
+                   if t in PANGOLIN_TARGETS or t in NEXTCLADE_TARGETS
+                   or t in FREYJA_TARGETS]
+
+# ── Cluster resource map ──────────────────────────────────────────────────────
+with open(join(WORKPATH, "config", "cluster.json")) as fh:
+    cluster = json.load(fh)
+
+# ── Local rules (run in master job, never submitted to SLURM) ─────────────────
+# Lightweight rules — symlinks, short Python/bash scripts — run directly on the
+# master node.  Heavy compute (alignment, variant calling, MultiQC, QUAST) stays
+# as cluster jobs.
+# Only custom_virmapDB stays local: it is nothing but `ln -sf`. The Python
+# one-shots now run in the python image, so they are submitted like any other
+# containerised rule rather than executing in the master job's environment.
+localrules:
+    custom_virmapDB,       # just ln -sf symlinks
+
+# ── Final pipeline outputs ────────────────────────────────────────────────────
+rule all:
+    input:
+        # Build environment (reference DB)
+        expand(
+            join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+            target=TARGETS,
+        ),
+        # Pre-process: Kraken2 screen + depletion summary + Krona chart.
+        # krona_plot is its own rule (Krona has no python3, kraken2 has no
+        # Krona), so its output must be requested explicitly.
+        expand(
+            join(WORKPATH, "{sample}", "pre_process", "kraken2",
+                 "{sample}.kraken2_decon.composition.tsv"),
+            sample=SAMPLES,
+        ),
+        expand(
+            join(WORKPATH, "{sample}", "pre_process", "kraken2",
+                 "{sample}.kraken2_decon.krona.html"),
+            sample=SAMPLES,
+        ),
+        # Pre-process: host/phiX-depleted FASTQs
+        expand(
+            join(WORKPATH, "{sample}", "pre_process", "{sample}.kraken2_decon.R1.fastq.gz"),
+            sample=SAMPLES,
+        ),
+        # Alignment: per-sample per-target BAMs
+        expand(
+            join(WORKPATH, "{sample}", "alignment", "{target}",
+                 "{sample}.{target}.bowtie2_map.bam"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Variant calling: per-sample per-target annotated VCFs and the flat
+        # variants table. The table is its own rule (GATK has no htslib), so
+        # it must be requested explicitly.
+        expand(
+            join(WORKPATH, "{sample}", "variant_calling", "{target}",
+                 "{sample}.{target}.freebayes_haplotypecaller.snpeff.vcf.gz"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        expand(
+            join(WORKPATH, "{sample}", "variant_calling", "{target}",
+                 "{sample}.{target}.freebayes_haplotypecaller.snpeff.variants.txt"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Alignment: mosdepth coverage per sample × target
+        expand(
+            join(WORKPATH, "{sample}", "alignment", "{target}",
+                 "mosdepth", "{sample}.{target}.mosdepth.summary.txt"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Alignment: Picard CollectMultipleMetrics per sample × target
+        expand(
+            join(WORKPATH, "{sample}", "alignment", "{target}",
+                 "picard", "{sample}.{target}.insert_size_metrics"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Variant calling: bcftools stats per sample × target
+        expand(
+            join(WORKPATH, "{sample}", "variant_calling", "{target}",
+                 "{sample}.{target}.bcftools_stats.txt"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Variant calling: per-sample consensus FASTA per target
+        expand(
+            join(WORKPATH, "{sample}", "variant_calling", "{target}",
+                 "{sample}.{target}.consensus.fa"),
+            sample=SAMPLES,
+            target=TARGETS,
+        ),
+        # Final report: all aggregate outputs + per-sample stage MultiQC reports
+        # (final_report/.done depends on all bcftools_merge, quast, igv, variants-table
+        #  outputs which are written directly into final_report/{target}/)
+        join(WORKPATH, "final_report", ".done"),
+        # Lineage: pangolin + nextclade + freyja. SARS targets only, because
+        # the Pango/Nextclade databases and the Freyja barcodes are
+        # SARS-CoV-2 specific; other viruses skip these silently.
+        expand(
+            join(WORKPATH, "{sample}", "lineage", "{target}",
+                 "{sample}.{target}.pangolin_lineage.csv"),
+            sample=SAMPLES,
+            target=PANGOLIN_TARGETS,
+        ),
+        expand(
+            join(WORKPATH, "{sample}", "lineage", "{target}",
+                 "{sample}.{target}.nextclade.tsv"),
+            sample=SAMPLES,
+            target=NEXTCLADE_TARGETS,
+        ),
+        expand(
+            join(WORKPATH, "{sample}", "lineage", "{target}",
+                 "{sample}.{target}.freyja.demix"),
+            sample=SAMPLES,
+            target=FREYJA_TARGETS,
+        ),
+
+# ── Rule imports ──────────────────────────────────────────────────────────────
+include: join("rules", "common.smk")
+include: join("rules", "hooks.smk")
+include: join("rules", "build_environment.smk")
+include: join("rules", "pre_process.smk")
+include: join("rules", "alignment.smk")
+include: join("rules", "variant_calling.smk")
+include: join("rules", "report.smk")
+include: join("rules", "lineage.smk")
