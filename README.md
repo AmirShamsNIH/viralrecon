@@ -155,13 +155,26 @@ Nothing else is needed locally — every tool is containerised.
 
 ### 2.3 Containers
 
-Images are resolved from `config/containers.json`, drawn from two locations in this order
-of preference:
+Images are resolved from `config/containers.json`, which names two **roots** per
+platform and writes every image against one of them:
 
-1. **`/data/OpenOmics/SIFs`** — the shared lab library, used whenever it carries the tool
-   at a version at least as new as the one pinned here.
-2. **`/data/RTB_GRS/references/singularity`** — built by us where the shared library has
-   no image, or only an older one.
+| root | what it holds |
+|---|---|
+| `{shared}` | a read-only library maintained by someone else |
+| `{ours}` | images we pull or build for this pipeline |
+
+Only the roots change between platforms; the image file names — which are the version
+pins of record — are written once and cannot drift apart per platform. On Biowulf the
+roots are `/data/OpenOmics/SIFs` and `/data/RTB_GRS/references/singularity`. A root may
+contain `{repo_parent}`, which expands to the directory holding the clone, so a cluster
+with no institutional reference tree keeps its images beside the checkout.
+
+`src/containers.py` resolves them for the platform given to
+`viralrecon build/run --platform`. The same idea covers databases the pipeline does not
+build: `config/config.json` holds a `paths` block keyed by platform for the Kraken2
+index and the Krona taxonomy, and `config/cluster.json` holds `__partition__` for the
+SLURM queue name. All three are resolved before Snakemake starts, so no rule ever asks
+which cluster it is on.
 
 A Snakemake rule may declare only **one** container, so a step chaining tools from
 different images is split into one rule per tool. When adding a rule, give it a
@@ -264,6 +277,75 @@ Submit it with `sbatch`, having run `module load python/3.10` first so the
 deliberate: `pangolin_lineage` redirects `TMPDIR` to a node-local path, because
 scorpio opens a Unix domain socket for `multiprocessing` and those do not work
 on GPFS.
+
+### 2.6 Platform profile: BigSky
+
+Pass `--platform BIGSKY` to both `build` and `run`. Everything that differs from
+Biowulf is config, not code: image roots in `config/containers.json`, database
+paths in `config/config.json`, and the queue name in `config/cluster.json`.
+
+**The layout.** BigSky has no institutional reference tree, so the deployment is
+one directory with the references beside the checkout:
+
+```
+/data/rml_ngs/viralrecon/
+├── viralrecon/     the clone
+├── singularity/    the images  ({repo_parent}/singularity)
+└── references/     `viralrecon build --output` goes here
+```
+
+**What differs**
+
+| | Biowulf | BigSky |
+|---|---|---|
+| SLURM partition | `norm` | `all` (also `himem`, 4 TB × 2, and `gpu`) |
+| `singularity` | compute nodes only | submit **and** compute nodes |
+| Internet | login node only; proxy for HTTP | everywhere, including compute nodes — **no proxy needed** |
+| Snakemake | `module load python/3.10` | no module — see below |
+| Node-local scratch | `/lscratch/$SLURM_JOB_ID` | none; `/tmp` is mounted **noexec** |
+| Kraken2 database | `/fdb/kraken/20260226_standard_kraken2` | `/data/rml_ngs/kraken_db/K2/k2_standard` |
+| Krona taxonomy | `/data/RTB_GRS/references/krona/taxonomy` | `/data/rml_ngs/ngs_dbs/krona/taxonomy` |
+| `git` | on `PATH` | `module load git` |
+
+Because compute nodes reach the internet directly, `viralrecon build` needs no
+proxy exports on BigSky, and the login/compute split that makes Biowulf awkward
+does not exist: one node can build images, build references, and push to GitHub.
+
+**Snakemake.** There is no snakemake module. Create it once:
+
+```bash
+PY=$(module load python/3.11.9-4z43o4e >/dev/null 2>&1; command -v python3)
+$PY -m venv /data/rml_ngs/viralrecon/sm_venv
+/data/rml_ngs/viralrecon/sm_venv/bin/pip install "snakemake==7.30.1" "pulp<2.8"
+```
+
+The `pulp<2.8` pin is not optional. Snakemake 7 calls `pulp.list_solvers`, which
+pulp 3 renamed, and an unpinned install fails on `--version` with
+`AttributeError: module 'pulp' has no attribute 'list_solvers'` before it reads a
+single rule.
+
+**Images.** The pinned set is ~7 GB. `/data/openomics/SIFs` exists on BigSky but
+carries only 1 of the 23 images, so both roots point at `singularity/` beside the
+clone and everything is staged there. Pulling one directly works, with a caveat:
+
+```bash
+export APPTAINER_TMPDIR=/data/rml_ngs/viralrecon/tmp
+export PROOT_TMP_DIR=/data/rml_ngs/viralrecon/tmp
+apptainer pull image.sif docker://quay.io/biocontainers/<tool>:<tag>
+```
+
+Without those two variables the pull fails deep inside proot with
+`mksquashfs: No such file or directory` — the real cause is that `/tmp` is
+mounted `noexec`, and apptainer falls back to proot because there is no setuid
+starter and no `/etc/subuid` entry (so `--fakeroot` is unavailable, exactly as on
+Biowulf).
+
+**Scratch.** `$OUTDIR/tmp` on GPFS is used for everything, as on Biowulf, so no
+`--gres=lscratch` is needed — which is just as well, since BigSky has no
+`/lscratch`. The `pangolin_lineage` exception still holds: it puts `TMPDIR` on
+node-local `/tmp` so scorpio can open a `multiprocessing` Unix socket, which GPFS
+does not support. `noexec` does not interfere with that — it blocks executing
+files, not binding sockets.
 
 ## 3. Run the pipeline
 

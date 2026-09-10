@@ -18,6 +18,11 @@ except ImportError:
     from utils import Colors, err, exists, fatal, git_commit_hash, join_jsons, unpacked, which
 
 try:
+    from . import containers
+except ImportError:
+    import containers
+
+try:
     from . import version as __version__
 except ImportError:
     import os as _os
@@ -295,6 +300,21 @@ def setup(sub_args, ifiles, repo_path, output_path):
             continue
         config['options'][opt] = str(val) if not isinstance(val, (list, dict)) else val
 
+    # Container images and platform-dependent data paths.
+    #
+    # containers.json ships image paths written against per-platform roots, and
+    # config.json ships the databases that live at a different absolute path on
+    # every cluster. Both are resolved here, once, so the config handed to
+    # Snakemake carries only real paths -- the workflow never has to know which
+    # platform it is on, and _resolve_bind_paths below sees the resolved paths
+    # and binds their directories without a second list to maintain.
+    _container_data = {k: config[k] for k in ('roots', 'images') if k in config}
+    config['images'] = containers.resolve_images(
+        repo_path, platform, data=_container_data)
+    config.pop('roots', None)
+    _apply_platform_paths(config, platform)
+    _apply_platform_partition(output_path, platform)
+
     # Bind paths for Singularity (kept for container-mode runs)
     config['bindpaths'] = _resolve_bind_paths(sub_args, config)
 
@@ -332,6 +352,62 @@ def setup(sub_args, ifiles, repo_path, output_path):
                 del _map[plat]
 
     return config
+
+
+def _apply_platform_paths(config, platform):
+    """
+    Write the active platform's value for each entry in config['paths'] into
+    the parameter that reads it.
+
+    These are databases the pipeline does not build -- the Kraken2 index, the
+    Krona taxonomy -- which exist on every cluster but never at the same path.
+    Keeping one platform-keyed table and resolving it here means a rule reads a
+    plain path, and adding a platform is an edit to config.json rather than to
+    the workflow.
+
+    A platform with no entry is fatal rather than defaulted: silently falling
+    back to a Biowulf path produces a run that fails deep inside a rule with a
+    missing-file error that says nothing about the real cause.
+    """
+    for name, spec in (config.get('paths') or {}).items():
+        if name.startswith('_') or not isinstance(spec, dict):
+            continue
+        stage = spec.get('_parameter_stage')
+        if not stage:
+            continue
+        if platform not in spec:
+            fatal(
+                "\n\tFatal: config.json paths.{} has no entry for platform {}."
+                "\n\tAdd one, or run with a platform that is listed: {}"
+                .format(name, platform,
+                        sorted(k for k in spec if not k.startswith('_')))
+            )
+        config.setdefault('parameters', {}).setdefault(stage, {})[name] = spec[platform]
+
+
+def _apply_platform_partition(output_path, platform):
+    """
+    Set __default__.partition in the run directory's cluster.json to the queue
+    this platform actually has.
+
+    The default queue is `norm` on Biowulf and `all` on BigSky, and a job
+    submitted to a queue that does not exist is rejected by sbatch with an
+    error that reads as a configuration typo rather than a portability
+    problem. The template keeps the mapping in __partition__; only the copy
+    inside the run directory is rewritten, so the repository file stays
+    platform-neutral.
+    """
+    path = os.path.join(output_path, 'config', 'cluster.json')
+    if not exists(path):
+        return
+    with open(path) as fh:
+        cluster = json.load(fh)
+    queue = (cluster.get('__partition__') or {}).get(platform)
+    if not queue:
+        return
+    cluster.setdefault('__default__', {})['partition'] = queue
+    with open(path, 'w') as fh:
+        json.dump(cluster, fh, indent=4)
 
 
 def _resolve_bind_paths(sub_args, config):

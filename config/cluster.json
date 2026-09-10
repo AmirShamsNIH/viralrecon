@@ -1,4 +1,15 @@
 {
+    "__comment__": [
+        "Per-rule SLURM resources, read by allocated() in workflow/scripts/common.py.",
+        "__partition__ names the queue to submit to on each platform: the default",
+        "queue is called norm on Biowulf and all on BigSky. src/run.py writes the",
+        "active platform's value into __default__.partition in the copy of this file",
+        "inside the run directory, so a rule never has to know the platform."
+    ],
+    "__partition__": {
+        "BIOWULF": "norm",
+        "BIGSKY": "all"
+    },
     "__default__": {
         "partition": "norm",
         "threads": "4",

@@ -33,8 +33,10 @@ import sys
 
 try:
     from .utils import err, fatal, which
+    from . import containers
 except ImportError:
     from utils import err, fatal, which
+    import containers
 
 # ---------------------------------------------------------------------------
 # Built-in virus → accession presets
@@ -280,23 +282,40 @@ def _validate_local(fasta, annotation):
 # second, drifting copy of the paths.
 # ---------------------------------------------------------------------------
 
-_CONTAINER_BINDS = ["/data/RTB_GRS", "/data/OpenOmics", "/fdb"]
+# Directories a build step may need to see from inside an image, beyond the
+# genome directory itself. Which of these exist is platform-dependent, and
+# _singularity_prefix() binds only the ones that do, so the same list is safe
+# everywhere: on BigSky /data/RTB_GRS and /fdb are simply absent.
+_CONTAINER_BINDS = ["/data/RTB_GRS", "/data/OpenOmics", "/data/openomics",
+                    "/data/rml_ngs", "/fdb"]
+
+# Platform whose image roots this build resolves against. build() sets it from
+# --platform before any step runs; it is module state rather than a parameter
+# because every _run_cmd caller in this file would otherwise have to thread it
+# through unchanged.
+_PLATFORM = containers.DEFAULT_PLATFORM
+
+
+def _set_platform(platform):
+    global _PLATFORM
+    _PLATFORM = platform or containers.DEFAULT_PLATFORM
 
 
 def _load_images():
-    """Read the image map from config/containers.json."""
+    """Image map for the platform this build is running on."""
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    cfg  = os.path.join(here, "config", "containers.json")
     try:
-        with open(cfg) as fh:
-            return json.load(fh).get("images", {})
+        return containers.resolve_images(here, _PLATFORM)
     except Exception as exc:
-        fatal("Cannot read {}: {}".format(cfg, exc))
+        fatal("Cannot resolve container images for platform {}: {}"
+              .format(_PLATFORM, exc))
 
 
 def _singularity_prefix(image):
     """argv prefix that runs a command inside `image`."""
-    binds = ",".join(d for d in _CONTAINER_BINDS if os.path.isdir(d))
+    here  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    roots = list(containers.image_roots(here, _PLATFORM).values())
+    binds = ",".join(d for d in _CONTAINER_BINDS + roots if os.path.isdir(d))
     cmd = ["singularity", "exec"]
     if binds:
         cmd += ["--bind", binds]
@@ -693,6 +712,7 @@ def build(sub_args, repo_path):
     # BIGSKY entry pointing at /data/RTB_GRS/... resolves to nothing there.
     # `viralrecon run` already defaults to BIOWULF; this matches it.
     platforms      = [platform] if platform else ["BIOWULF"]
+    _set_platform(platforms[0])
 
     genome_json = os.path.join(outdir, "genome.json")
     force = getattr(sub_args, "force", False)

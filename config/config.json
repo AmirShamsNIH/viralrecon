@@ -59,10 +59,10 @@
             "bbtools_reformat": "overwrite=t crashjunk=f fixjunk=t iupacToN=t ignorebadquality=t tossbrokenreads=t minlength=30 maxcalledquality=41 mincalledquality=2",
             "fastp_trim": "--length_required 30 --compression 4 --detect_adapter_for_pe --overrepresentation_analysis --low_complexity_filter --complexity_threshold 30 --unqualified_percent_limit 40 --qualified_quality_phred 20",
             "kraken2_decon": "--memory-mapping --gzip-compressed",
-            "kraken2_decon_db": "/fdb/kraken/20260226_standard_kraken2",
+            "kraken2_decon_db": "",
             "kraken2_decon_taxids": "9606 10847 2",
             "kraken2_profile_taxids": "",
-            "krona_taxonomy": "/data/RTB_GRS/references/krona/taxonomy",
+            "krona_taxonomy": "",
             "fastqc": "--extract"
         },
         "alignment": {
@@ -112,6 +112,25 @@
                 "NC_045512",
                 "PP115423"
             ]
+        }
+    },
+    "paths": {
+        "_comment": [
+            "Databases the pipeline does not build, which exist on every cluster but",
+            "never at the same absolute path. src/run.py writes the active platform's",
+            "value into parameters.<_parameter_stage>.<name> before Snakemake sees the",
+            "config, so rules read a plain path and adding a platform is an edit here.",
+            "A platform missing from an entry is a fatal error, not a silent default."
+        ],
+        "kraken2_decon_db": {
+            "_parameter_stage": "pre_process",
+            "BIOWULF": "/fdb/kraken/20260226_standard_kraken2",
+            "BIGSKY": "/data/rml_ngs/kraken_db/K2/k2_standard"
+        },
+        "krona_taxonomy": {
+            "_parameter_stage": "pre_process",
+            "BIOWULF": "/data/RTB_GRS/references/krona/taxonomy",
+            "BIGSKY": "/data/rml_ngs/ngs_dbs/krona/taxonomy"
         }
     }
 }
