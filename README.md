@@ -340,6 +340,22 @@ mounted `noexec`, and apptainer falls back to proot because there is no setuid
 starter and no `/etc/subuid` entry (so `--fakeroot` is unavailable, exactly as on
 Biowulf).
 
+**Apptainer version string.** Snakemake 7 parses `singularity --version` with
+`packaging.Version`, and BigSky's apptainer answers `apptainer version
+1.5.0-1.el9`. The RPM release suffix is not PEP 440, so the master job dies in
+28 seconds with `InvalidVersion: '1.5.0-1.el9'` before running a single rule.
+A one-line shim earlier on `PATH` fixes it:
+
+```bash
+cat > /data/rml_ngs/viralrecon/bin/singularity <<'SH'
+#!/usr/bin/env bash
+if [ "$1" = "--version" ]; then echo "apptainer version 1.5.0"; exit 0; fi
+exec /usr/bin/singularity "$@"
+SH
+chmod +x /data/rml_ngs/viralrecon/bin/singularity
+export PATH=/data/rml_ngs/viralrecon/bin:/data/rml_ngs/viralrecon/sm_venv/bin:$PATH
+```
+
 **Scratch.** `$OUTDIR/tmp` on GPFS is used for everything, as on Biowulf, so no
 `--gres=lscratch` is needed — which is just as well, since BigSky has no
 `/lscratch`. The `pangolin_lineage` exception still holds: it puts `TMPDIR` on
