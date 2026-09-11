@@ -938,7 +938,9 @@ rule final_report:
         workpath = WORKPATH,
         samples  = SAMPLES,
         targets  = TARGETS,
-        sars     = LINEAGE_TARGETS if LINEAGE_TARGETS else [],
+        lineage  = LINEAGE_TARGETS if LINEAGE_TARGETS else [],
+        taxids   = ["%s=%s" % (t, (_TARGET_REFS.get(t) or {}).get("taxid", ""))
+                    for t in TARGETS if (_TARGET_REFS.get(t) or {}).get("taxid")],
         script   = join(WORKPATH, "workflow", "scripts", "collect_final_report.py"),
         min_cov  = config["parameters"]["variant_calling"].get("min_genome_coverage", "0.80"),
         min_depth= config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
@@ -963,7 +965,8 @@ python3 "{params.script}" \
     --outdir   "$OUTDIR" \
     --samples  {params.samples} \
     --targets  {params.targets} \
-    --sars-targets {params.sars} \
+    --lineage-targets {params.lineage} \
+    --target-taxids {params.taxids} \
     --min-genome-coverage {params.min_cov} \
     --consensus-min-depth {params.min_depth} \
     >> "{log}" 2>&1

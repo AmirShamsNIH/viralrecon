@@ -111,6 +111,9 @@
             "pangolin_targets": [
                 "NC_045512",
                 "PP115423"
+            ],
+            "pangolin_taxids": [
+                "2697049"
             ]
         }
     },

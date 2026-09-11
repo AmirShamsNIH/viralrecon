@@ -234,7 +234,7 @@ def count_variants(vcf_gz, sample):
 
 COLUMNS = [
     "sample", "target",
-    "input_read_pairs", "pct_viral", "pct_sars_cov_2", "pct_human", "pct_depleted",
+    "input_read_pairs", "pct_viral", "pct_target", "pct_human", "pct_depleted",
     "mapped_reads", "mapped_pct", "reads_used", "mean_depth", "qc_status",
     "genome_length", "consensus_masked_bases", "pct_genome_covered",
     "n_variants",
@@ -250,8 +250,14 @@ def main():
     ap.add_argument("--outdir", required=True)
     ap.add_argument("--samples", nargs="+", required=True)
     ap.add_argument("--targets", nargs="+", required=True)
-    ap.add_argument("--sars-targets", nargs="*", default=[],
+    ap.add_argument("--lineage-targets", nargs="*", default=[],
                     help="targets eligible for lineage calling")
+    ap.add_argument("--target-taxids", nargs="*", default=[], metavar="NAME=TAXID",
+                    help="NCBI taxid per target, from genome.json. pct_target is "
+                         "read from the Kraken2 report at that taxid, so the "
+                         "column means the same thing for every virus; a target "
+                         "registered without a taxid leaves it blank rather than "
+                         "reporting some other organism's percentage.")
     ap.add_argument("--min-genome-coverage", type=float, default=0.80,
                     help="fraction of the reference that must reach the "
                          "consensus depth floor before a target is trusted")
@@ -259,7 +265,12 @@ def main():
     a = ap.parse_args()
 
     W, FR = a.workpath, a.outdir
-    sars = set(a.sars_targets)
+    lineage_targets = set(a.lineage_targets)
+    target_taxid = {}
+    for pair in a.target_taxids:
+        name, _, taxid = pair.partition("=")
+        if name and taxid:
+            target_taxid[name] = taxid
     os.makedirs(FR, exist_ok=True)
     rows = []
 
@@ -274,7 +285,7 @@ def main():
         # directory reads as "this failed", so a target the lineage stage never
         # applied to gets no directory rather than an empty one; run_summary.tsv
         # carries the qc column that says why.
-        if target in sars:
+        if target in lineage_targets:
             os.makedirs(lin_d, exist_ok=True)
 
         # Aggregate outputs are already in final_report/{target}/ because the
@@ -320,7 +331,7 @@ def main():
             pang = join(ln, "%s.%s.pangolin_lineage.csv" % (s, target))
             next_ = join(ln, "%s.%s.nextclade.tsv" % (s, target))
             frey = join(ln, "%s.%s.freyja.demix" % (s, target))
-            if target in sars:
+            if target in lineage_targets:
                 # The .csv / .demix.tsv twins exist only so MultiQC can detect
                 # them; the collector copies the human-readable forms.
                 boot = join(ln, "%s.%s.freyja.boot_lineages.csv" % (s, target))
@@ -361,7 +372,7 @@ def main():
                 "sample": s, "target": target,
                 "input_read_pairs": summ[0].get("total_reads", "") if summ else "",
                 "pct_viral":      k.get("10239", ""),
-                "pct_sars_cov_2": k.get("2697049", ""),
+                "pct_target":     k.get(target_taxid.get(target, ""), ""),
                 "pct_human":      k.get("9606", ""),
                 "pct_depleted":   summ[0].get("depleted_pct", "") if summ else "",
                 "mapped_reads": mapped, "mapped_pct": mpct,
@@ -384,7 +395,7 @@ def main():
                     text = open(f).read()
                     out.write(text if text.endswith("\n") else text + "\n")
 
-        if target in sars:
+        if target in lineage_targets:
             lin_summary = join(lin_d, "lineage_summary.tsv")
             with open(lin_summary, "w", newline="") as fh:
                 w = csv.writer(fh, delimiter="\t")

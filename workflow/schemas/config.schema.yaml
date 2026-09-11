@@ -88,16 +88,25 @@ properties:
 
       lineage:
         type: object
-        required: [pangolin_targets]
         properties:
           freyja_targets:      {type: array, items: {type: string}}
-          pangolin_targets:
+          pangolin_taxids:
             type: array
-            minItems: 1
             items: {type: string}
             description: >
-              Substrings matched against target names, by accession rather than
-              a name prefix, since a prefix like "SARS" would wrongly catch
-              SARS-CoV-1. Pangolin describes SARS-CoV-2 and nothing else.
-              Nextclade is not listed here: it is gated on whether a target
-              carries a nextclade_dataset path in genome.json.
+              NCBI taxids whose targets pangolin can describe -- in practice
+              2697049, since Pango nomenclature exists for SARS-CoV-2 and
+              nothing else. This is the primary gate: it asks what the virus
+              is rather than what the reference was named, so a SARS-CoV-2
+              isolate registered under any name is covered, and no other virus
+              ever is.
+          pangolin_targets:
+            type: array
+            items: {type: string}
+            description: >
+              Substrings matched against target names, for a target that should
+              be called despite carrying no taxid. Matched by accession rather
+              than a name prefix, since a prefix like "SARS" would wrongly catch
+              SARS-CoV-1. Nextclade is not listed here: it is gated on whether a
+              target carries a nextclade_dataset path in genome.json, which is
+              what makes it work for any virus with a dataset.

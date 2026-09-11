@@ -101,12 +101,29 @@ TARGET_TAXIDS = sorted({
 
 # Each lineage caller gets a gate matching what it can actually describe.
 #
-# pangolin: Pango nomenclature exists only for SARS-CoV-2 and its database is
-# baked into the image, so this is a list of accessions, not data.
-# Default empty, not ["NC_045512"]: a config that forgets this should run no
-# lineage calls rather than quietly assume every target is SARS-CoV-2.
+# pangolin: Pango nomenclature exists only for SARS-CoV-2, and its database is
+# baked into the image, so the gate asks one question -- is this target
+# SARS-CoV-2? A taxid answers it directly, and every reference carries one, so
+# a SARS-CoV-2 isolate registered under any name at all is covered without
+# anyone remembering to add it to a list. Pangolin reads the consensus FASTA
+# and is indifferent to which reference produced it, so mapping to a 2021
+# isolate rather than Wuhan-Hu-1 changes nothing about the call.
+#
+# pangolin_targets stays as a name match beside it, for a target that should be
+# called despite carrying no taxid. Both default empty: a config that forgets
+# them should run no lineage calls rather than quietly assume every target is
+# SARS-CoV-2.
+_PANGOLIN_TAXIDS = {str(t) for t in
+                    config["parameters"]["lineage"].get("pangolin_taxids", [])}
 _PANGOLIN_MATCH  = config["parameters"]["lineage"].get("pangolin_targets", [])
-PANGOLIN_TARGETS = [t for t in TARGETS if any(m in t for m in _PANGOLIN_MATCH)]
+
+def _pangolin_applies(target):
+    entry = config["references"]["target"].get(PLATFORM, {}).get(target) or {}
+    if _PANGOLIN_TAXIDS and str(entry.get("taxid", "")) in _PANGOLIN_TAXIDS:
+        return True
+    return any(m in target for m in _PANGOLIN_MATCH)
+
+PANGOLIN_TARGETS = [t for t in TARGETS if _pangolin_applies(t)]
 
 # nextclade: dataset-driven, and the dataset belongs to the reference. A target
 # carries its own dataset path in genome.json, written by `viralrecon build
