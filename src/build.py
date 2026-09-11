@@ -596,8 +596,13 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
             existing.add(plat)
         prior = tgts.get(canonical_name, {})
         entry = {"fasta": fasta_path, "gtf": gff_path}
+        # The entry is rebuilt from scratch, so anything not passed in has to
+        # be carried over explicitly or it is dropped. A backfill that adds one
+        # field would otherwise delete the others.
         if taxid:
             entry["taxid"] = str(taxid)
+        elif prior.get("taxid"):
+            entry["taxid"] = prior["taxid"]
         if notes is None:
             if prior.get("notes"):
                 entry["notes"] = prior["notes"]
@@ -717,6 +722,8 @@ def build(sub_args, repo_path):
     genome_json = os.path.join(outdir, "genome.json")
     force = getattr(sub_args, "force", False)
 
+    nc_dataset = getattr(sub_args, "nextclade_dataset", None)
+
     # ── Already built? Verify, then skip ────────────────────────────────────
     # Registration alone is not evidence: an entry can outlive a build that was
     # interrupted, or files can be removed afterwards. The registry says a
@@ -742,25 +749,47 @@ def build(sub_args, repo_path):
         # permanently - silently costing that target its row in the Kraken2
         # composition profile. Backfilling is a metadata update, so the
         # expensive file work is still skipped.
-        if not local_pair:
-            try:
-                with open(genome_json) as fh:
-                    _reg2 = json.load(fh)["references"]["target"]
-                have = any(_reg2.get(pl, {}).get(canonical_name, {}).get("taxid")
-                           for pl in platforms)
-            except Exception:
-                have = True
-            if not have:
-                taxid = getattr(sub_args, "taxid", None) or _efetch_taxid(accession)
-                if taxid:
-                    print("\n  backfilling missing taxid {} for '{}'"
-                          .format(taxid, canonical_name))
-                    _update_genome_json(
-                        genome_json, canonical_name, platforms,
-                        os.path.join(genome_dir, "{}.fa".format(canonical_name)),
-                        _existing_annotation(genome_dir),
-                        taxid=taxid,
-                    )
+        try:
+            with open(genome_json) as fh:
+                _reg2 = json.load(fh)["references"]["target"]
+            _entry = {}
+            for pl in platforms:
+                _entry = _reg2.get(pl, {}).get(canonical_name, {}) or _entry
+        except Exception:
+            _entry = {"taxid": True, "nextclade_dataset": True}
+
+        _taxid_arg = getattr(sub_args, "taxid", None)
+        taxid = None
+        if not _entry.get("taxid"):
+            # A local pair has no accession to look the taxid up from, so it
+            # gets one only when --taxid says so.
+            taxid = _taxid_arg or (None if local_pair else _efetch_taxid(accession))
+            if taxid:
+                print("\n  backfilling missing taxid {} for '{}'"
+                      .format(taxid, canonical_name))
+
+        # The dataset is the other thing a complete set of files cannot imply.
+        # Nextclade aligns against the dataset's own reference rather than
+        # ours, so naming one is a decision about which nomenclature to report
+        # in, not something derivable from the FASTA -- and a reference built
+        # before that decision was made would otherwise stay unannotated for
+        # good, because every later build skips right past the fetch.
+        nc_path = None
+        if nc_dataset and not _entry.get("nextclade_dataset"):
+            print("\n  backfilling nextclade dataset '{}' for '{}'"
+                  .format(nc_dataset, canonical_name))
+            nc_path = _fetch_nextclade_dataset(
+                nc_dataset, genome_dir,
+                os.path.join(genome_dir, "build_index.log"))
+
+        if taxid or nc_path:
+            _update_genome_json(
+                genome_json, canonical_name, platforms,
+                os.path.join(genome_dir, "{}.fa".format(canonical_name)),
+                _existing_annotation(genome_dir),
+                taxid=taxid,
+                nextclade_dataset=nc_path,
+            )
         print("\n✓ Genome '{}' is already built and complete — skipping."
               .format(canonical_name))
         print("  Reference dir : {}".format(genome_dir))
@@ -800,7 +829,6 @@ def build(sub_args, repo_path):
     if not no_index:
         _build_index(canonical_name, genome_dir)
 
-    nc_dataset = getattr(sub_args, "nextclade_dataset", None)
     nc_path = None
     if nc_dataset:
         nc_path = _fetch_nextclade_dataset(
