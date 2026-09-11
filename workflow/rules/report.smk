@@ -763,11 +763,6 @@ rule multiqc_report:
                  "{sample}.{target}.nextclade.csv"),
             sample=SAMPLES, target=NEXTCLADE_TARGETS,
         ),
-        freyja = expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.freyja.demix.tsv"),
-            sample=SAMPLES, target=FREYJA_TARGETS,
-        ),
     output:
         html = join(_FR, "multiqc", "project_multiqc_report.html"),
     params:
@@ -871,7 +866,7 @@ rule final_report:
     │   └── project_multiqc_report.html
     └── {target}/
         ├── consensus/   per-sample + combined consensus FASTA
-        ├── lineage/     pangolin / nextclade / freyja + lineage_summary.tsv
+        ├── lineage/     pangolin / nextclade + lineage_summary.tsv
         ├── variants/    aggregate VCFs + variant tables
         ├── qc/          mapping, mosdepth, low-cov mask, kraken composition
         ├── igv_session.{target}.xml
@@ -901,11 +896,6 @@ rule final_report:
             join(WORKPATH, "{sample}", "lineage", "{target}",
                  "{sample}.{target}.nextclade.tsv"),
             sample=SAMPLES, target=NEXTCLADE_TARGETS,
-        ),
-        freyja = expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.freyja.demix"),
-            sample=SAMPLES, target=FREYJA_TARGETS,
         ),
         agg_vcfs = expand(
             join(_FR, "{target}", "aggregate.{target}.vcf.gz"),

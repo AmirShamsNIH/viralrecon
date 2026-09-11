@@ -43,7 +43,7 @@ Two design commitments make its results reproducible:
   appears anywhere in the workflow, or in the reference-building CLI. A cluster module
   can be upgraded or removed underneath a pipeline and its version is not recorded in
   the run directory; a pinned `.sif` path is. This matters most for tools that bundle a
-  database — pangolin, nextclade, freyja — where a floating version silently changes
+  database — pangolin, nextclade — where a floating version silently changes
   lineage assignments.
 - **The pipeline is virus-agnostic.** Nothing outside the optional lineage stage assumes
   SARS-CoV-2. Targets are selected by accession, never by name, and a run may carry
@@ -68,7 +68,7 @@ Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optiona
 | 3 | **alignment** | Map to each target, QC the mapping | [Bowtie2][6] · [samtools][7] · [Picard][8] · [mosdepth][9] |
 | 4 | **variant_calling** | Call, normalise, annotate, build consensus | [FreeBayes][10] · [bcftools][7] · [SnpEff/SnpSift][11] · [GATK4][12] |
 | 5 | **report** | Aggregate across samples, assemble `final_report/` | bcftools · GATK4 · [QUAST][13] · [MultiQC][14] |
-| — | **lineage** *(opt.)* | Lineage / clade / mixture calls | [pangolin][15] · [Nextclade][16] · [Freyja][17] |
+| — | **lineage** *(opt.)* | Lineage / clade calls | [pangolin][15] · [Nextclade][16] |
 
 #### Quality control and decontamination
 
@@ -130,11 +130,11 @@ equivalent:
   than described against another virus's dataset, which would return confident nonsense
   instead of failing.
 
-- **Freyja** (mixture deconvolution, which detects co-infection or multi-strain samples a
-  single consensus hides) is gated by `freyja_targets`, and that is a coordinate
-  constraint rather than a preference: freyja reads a BAM in *reference* coordinates and
-  matches it against barcodes keyed to Wuhan-Hu-1, so against any other reference its
-  answer is meaningless even when it does not crash.
+Freyja was removed rather than gated. It demixes only the pathogens it carries curated
+barcodes for, and those barcodes are keyed to each pathogen's own reference coordinates,
+so most references could never use it. A stage that runs for a minority of targets
+complicates the report schema and the documentation for everyone who will never see
+output from it.
 
 Agreement between the callers is the point; disagreement is a finding.
 
@@ -448,7 +448,6 @@ Frequently adjusted keys:
 | `min_genome_coverage` | `0.80` | Coverage below this raises a QC warning |
 | `min_mapped_reads` | `1000` | Below this, a target's downstream stages are skipped |
 | `pangolin_targets` | `["NC_045512", "PP115423"]` | Targets pangolin runs on |
-| `freyja_targets` | `["NC_045512"]` | Targets freyja runs on — Wuhan coordinates only |
 
 Nextclade has no list: it runs on whichever targets carry a `nextclade_dataset` path in
 `genome.json`, written at build time.
@@ -484,15 +483,15 @@ Twenty-three columns grouped as:
 | group | columns | reads as |
 |---|---|---|
 | Input | `input_read_pairs` | how much data went in |
-| Composition | `pct_viral`, `pct_sars_cov_2`, `pct_human`, `pct_depleted` | what the library was made of, *before* depletion |
+| Composition | `pct_viral`, `pct_target`, `pct_human`, `pct_depleted` | what the library was made of, *before* depletion |
 | Mapping | `mapped_reads`, `mapped_pct`, `reads_used` | how much of it hit this target |
 | Assembly | `mean_depth`, `genome_length`, `consensus_masked_bases`, `pct_genome_covered` | how good the genome is |
 | Variants | `n_variants` | how much it differs from the reference |
-| Lineage | `pangolin_lineage`, `pangolin_qc`, `nextclade_clade`, `nextclade_qc`, `nextclade_coverage`, `freyja_lineages`, `freyja_abundances` | what strain it is, from three independent callers |
+| Lineage | `pangolin_lineage`, `pangolin_qc`, `nextclade_clade`, `nextclade_qc`, `nextclade_coverage` | what strain it is, from three independent callers |
 | Verdict | `qc_status` | **`pass`, or `WARN:` plus reasons** |
 
 **`qc_status` is the column to scan first.** `WARN:LOW_GENOME_COVERAGE`,
-`WARN:LOW_MAPPED_READS`, `WARN:FREYJA_FAILED` and friends say exactly which check failed,
+`WARN:LOW_MAPPED_READS`, `WARN:NEXTCLADE_FAILED` and friends say exactly which check failed,
 and several reasons combine with `+`. A stage that was *skipped* rather than *failed*
 never appears here — see §4.6.
 
@@ -568,16 +567,12 @@ Present only for targets the callers can describe (see §4.7).
 
 | file | caller | gives |
 |---|---|---|
-| `lineage_summary.tsv` | all three | **side-by-side table, read this one** |
+| `lineage_summary.tsv` | both | **side-by-side table, read this one** |
 | `{sample}.{target}.pangolin_lineage.csv` | pangolin | Pango lineage + QC |
 | `{sample}.{target}.nextclade.tsv` | Nextclade | clade, QC, mutation list |
-| `{sample}.{target}.freyja.demix` | Freyja | lineage *mixture* abundances |
-| `{sample}.{target}.freyja.boot_lineages.csv` | Freyja | bootstrap confidence intervals |
 
-Three independent methods on purpose. **Agreement is the result; disagreement is a
-finding**, usually meaning a low-quality or genuinely mixed sample. Freyja is the one that
-detects co-infection or multi-strain samples, which a single consensus hides by
-construction.
+Two independent methods on purpose. **Agreement is the result; disagreement is a
+finding**, usually meaning a low-quality or genuinely mixed sample.
 
 ### 4.6 Whether to believe it — `{target}/qc/` and `multiqc/`
 
@@ -601,11 +596,11 @@ reference in IGV — the fastest way to eyeball a specific variant.
 
 An absent output can mean a stage did not apply, which is not a warning:
 
-- **No `lineage/` directory** — the target is not a lineage target. The Pango and
-  Nextclade databases are SARS-CoV-2 specific.
-- **No freyja files** — freyja is gated separately on Wuhan-Hu-1 coordinates
-  (`freyja_targets`), because it matches a BAM against barcodes keyed to that genome and
-  its answer is meaningless against any other reference.
+- **No `lineage/` directory** — the target qualified for neither caller: no Nextclade
+  dataset on the reference, and a taxid that is not SARS-CoV-2.
+- **No pangolin files, but nextclade present** — Pango nomenclature exists for
+  SARS-CoV-2 alone, so pangolin is gated on the target's taxid while nextclade runs for
+  any reference carrying a dataset.
 - **A target missing downstream stages entirely** — mapping fell below `min_mapped_reads`,
   and `qc_status` says `LOW_MAPPED_READS`. One weak reference does not stop the others.
 
@@ -675,7 +670,6 @@ re-running later cannot silently pick up a changed repo.
 [14]: https://multiqc.info/
 [15]: https://github.com/cov-lineages/pangolin
 [16]: https://clades.nextstrain.org/
-[17]: https://github.com/andersen-lab/Freyja
 
 ---
 

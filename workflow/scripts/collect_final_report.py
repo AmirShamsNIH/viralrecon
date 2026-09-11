@@ -13,7 +13,7 @@ final_report/
   multiqc/                            project-wide MultiQC
   {target}/
     consensus/                        per-sample + combined consensus FASTA
-    lineage/                          pangolin / nextclade / freyja + summary
+    lineage/                          pangolin / nextclade + summary
     variants/                         aggregate VCFs and variant tables
     qc/                               mapping, coverage, contamination profile
     igv_session.{target}.xml
@@ -106,7 +106,7 @@ def stub_reason(path, marker):
         return False
 
 
-def lineage_failures(pang, next_, frey):
+def lineage_failures(pang, next_):
     """
     Name the lineage callers that ran and failed for one sample x target.
 
@@ -116,23 +116,16 @@ def lineage_failures(pang, next_, frey):
     named reason for qc_status.
 
     A missing file is not a failure. A caller that was gated out for this
-    target - freyja against a non-Wuhan reference, any of them against a
-    non-SARS-CoV-2 target - writes nothing at all, and that is a deliberate
-    skip rather than something to warn about. Only a file that exists and
-    carries a stub marker, or an empty freyja demix, counts here.
+    target - pangolin against a virus with no Pango nomenclature, nextclade
+    against a reference carrying no dataset - writes nothing at all, and that
+    is a deliberate skip rather than something to warn about. Only a file that
+    exists and carries a stub marker counts here.
     """
     failed = []
     if stub_reason(pang, "pangolin_error"):
         failed.append("PANGOLIN_FAILED")
     if stub_reason(next_, "nextclade_error"):
         failed.append("NEXTCLADE_FAILED")
-    # freyja's stub is an empty file: freyja demix has no header to mark up.
-    if exists(frey):
-        try:
-            if os.path.getsize(frey) == 0:
-                failed.append("FREYJA_FAILED")
-        except OSError:
-            failed.append("FREYJA_FAILED")
     return failed
 
 
@@ -175,22 +168,6 @@ def nextclade_call(path):
     return (r.get("clade", ""), r.get("qc.overallStatus", ""),
             r.get("coverage", ""))
 
-
-def freyja_call(path):
-    """freyja demix writes a two-column summary; pull lineages + abundances."""
-    if not exists(path):
-        return "", ""
-    lin = ab = ""
-    with open(path) as fh:
-        for line in fh:
-            parts = line.rstrip("\n").split("\t")
-            if len(parts) < 2:
-                continue
-            if parts[0].strip() == "lineages":
-                lin = parts[1].strip()
-            elif parts[0].strip() == "abundances":
-                ab = parts[1].strip()
-    return lin, ab
 
 
 def flagstat_mapped(path):
@@ -240,7 +217,6 @@ COLUMNS = [
     "n_variants",
     "pangolin_lineage", "pangolin_qc",
     "nextclade_clade", "nextclade_qc", "nextclade_coverage",
-    "freyja_lineages", "freyja_abundances",
 ]
 
 
@@ -330,12 +306,10 @@ def main():
 
             pang = join(ln, "%s.%s.pangolin_lineage.csv" % (s, target))
             next_ = join(ln, "%s.%s.nextclade.tsv" % (s, target))
-            frey = join(ln, "%s.%s.freyja.demix" % (s, target))
             if target in lineage_targets:
-                # The .csv / .demix.tsv twins exist only so MultiQC can detect
-                # them; the collector copies the human-readable forms.
-                boot = join(ln, "%s.%s.freyja.boot_lineages.csv" % (s, target))
-                for f in (pang, next_, frey, boot):
+                # The .csv twin exists only so MultiQC can detect it; the
+                # collector copies the human-readable forms.
+                for f in (pang, next_):
                     _copy(f, lin_d)
 
             k = kraken_composition(comp)
@@ -361,12 +335,11 @@ def main():
                 covered = "%.4f" % frac
                 if frac < a.min_genome_coverage:
                     reasons.append("LOW_GENOME_COVERAGE")
-            reasons.extend(lineage_failures(pang, next_, frey))
+            reasons.extend(lineage_failures(pang, next_))
             reasons.extend(tgt_failures)
             qc = "pass" if not reasons else "WARN:" + "+".join(reasons)
             pl, pq = pangolin_call(pang)
             nc, nq, ncov = nextclade_call(next_)
-            fl, fa = freyja_call(frey)
 
             rows.append({
                 "sample": s, "target": target,
@@ -386,7 +359,6 @@ def main():
                 "pangolin_lineage": pl, "pangolin_qc": pq,
                 "nextclade_clade": nc, "nextclade_qc": nq,
                 "nextclade_coverage": ncov,
-                "freyja_lineages": fl, "freyja_abundances": fa,
             })
 
         if cons_parts:
@@ -400,14 +372,12 @@ def main():
             with open(lin_summary, "w", newline="") as fh:
                 w = csv.writer(fh, delimiter="\t")
                 w.writerow(["sample", "pangolin_lineage", "pangolin_qc",
-                            "nextclade_clade", "nextclade_qc",
-                            "freyja_lineages", "freyja_abundances"])
+                            "nextclade_clade", "nextclade_qc"])
                 for r in rows:
                     if r["target"] == target:
                         w.writerow([r["sample"], r["pangolin_lineage"],
                                     r["pangolin_qc"], r["nextclade_clade"],
-                                    r["nextclade_qc"], r["freyja_lineages"],
-                                    r["freyja_abundances"]])
+                                    r["nextclade_qc"]])
 
     with open(join(FR, "run_summary.tsv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=COLUMNS, delimiter="\t",

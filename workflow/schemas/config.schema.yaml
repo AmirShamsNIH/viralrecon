@@ -89,16 +89,6 @@ properties:
       lineage:
         type: object
         properties:
-          freyja_targets:
-            type: array
-            items: {type: string}
-            description: >
-              Substrings matched against target names, for references
-              registered before --freyja-pathogen existed. The primary gate is
-              the freyja_pathogen recorded on the reference itself: freyja
-              matches BAM positions against barcodes keyed to one pathogen's own
-              reference coordinates, so the barcode set belongs to the
-              reference, not to the run.
           pangolin_taxids:
             type: array
             items: {type: string}

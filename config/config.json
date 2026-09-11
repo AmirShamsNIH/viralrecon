@@ -49,8 +49,7 @@
             ],
             "lineage": [
                 "pangolin_lineage",
-                "nextclade_clade",
-                "freyja_demix"
+                "nextclade_clade"
             ]
         }
     },
@@ -101,13 +100,6 @@
         "lineage": {
             "pangolin": "--analysis-mode accurate",
             "nextclade": "",
-            "freyja_variants": "--minq 20",
-            "freyja_demix": "",
-            "freyja_boot": "--nb 100",
-            "skip_freyja_boot": "false",
-            "freyja_targets": [
-                "NC_045512"
-            ],
             "pangolin_targets": [
                 "NC_045512",
                 "PP115423"

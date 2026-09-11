@@ -17,7 +17,7 @@
 #       │
 #       ├──►  report/{target}/: bcftools_merge (all samples) -> snpEff -> multiqc
 #       │
-#       └──►  lineage/{target}/: pangolin + nextclade + freyja  [SARS only]
+#       └──►  lineage/{target}/: nextclade [any dataset] + pangolin [SARS]
 #
 # Configuration
 # -------------
@@ -78,11 +78,6 @@ if not TARGETS:
         .format(PLATFORM)
     )
 
-# Lineage tools are SARS-CoV-2 specific: the Pango and Nextclade databases and
-# the Freyja barcodes all describe SARS-CoV-2 and nothing else. Targets are
-# matched on accession rather than on a "SARS" name prefix, because a prefix
-# also catches SARS-CoV-1 (NC_004718) and any other sarbecovirus a user
-# registers, which would be handed to callers that cannot describe them.
 # Each target's own taxid, recorded by `viralrecon build`, so the Kraken2
 # composition profile breaks out whichever viruses this run is actually about.
 # The pipeline is not coronavirus-specific; hardcoding one virus's taxid here
@@ -138,34 +133,10 @@ def nextclade_dataset_for(target):
 
 NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
 
-# Freyja is gated per barcode set, not per virus. It deconvolutes a mixture
-# against barcodes for one of about fifteen pathogens (freyja demix
-# --pathogen), or against a custom barcode file, so it is not a SARS-CoV-2-only
-# tool. What it cannot do is cross references: it reads a BAM in reference
-# coordinates and matches positions against barcodes keyed to that pathogen's
-# own reference, so the two must be the same genome. Running PP115423.1
-# (29,721 bp) against the SARS-CoV-2 barcodes raised KeyError 29735 - a
-# Wuhan-Hu-1 coordinate that does not exist in that reference.
-#
-# So the pathogen belongs to the reference, exactly like the nextclade dataset:
-# `viralrecon build --freyja-pathogen MEASLESgenome` records it in genome.json
-# only for a reference it actually applies to, and carrying one is the gate.
-# freyja_targets remains as a name match for references registered before this
-# existed.
-def freyja_pathogen_for(target):
-    entry = _TARGET_REFS.get(target) or {}
-    return entry.get("freyja_pathogen", "")
-
-_FREYJA_MATCH  = config["parameters"]["lineage"].get("freyja_targets", [])
-FREYJA_TARGETS = [t for t in TARGETS
-                  if freyja_pathogen_for(t)
-                  or any(m in t for m in _FREYJA_MATCH)]
-
 # Union, for the places that only ask "does this target have any lineage
 # output at all" - the final_report lineage directory and the MultiQC ordering.
 LINEAGE_TARGETS = [t for t in TARGETS
-                   if t in PANGOLIN_TARGETS or t in NEXTCLADE_TARGETS
-                   or t in FREYJA_TARGETS]
+                   if t in PANGOLIN_TARGETS or t in NEXTCLADE_TARGETS]
 
 # ── Cluster resource map ──────────────────────────────────────────────────────
 with open(join(WORKPATH, "config", "cluster.json")) as fh:
@@ -261,9 +232,9 @@ rule all:
         # (final_report/.done depends on all bcftools_merge, quast, igv, variants-table
         #  outputs which are written directly into final_report/{target}/)
         join(WORKPATH, "final_report", ".done"),
-        # Lineage: pangolin + nextclade + freyja. SARS targets only, because
-        # the Pango/Nextclade databases and the Freyja barcodes are
-        # SARS-CoV-2 specific; other viruses skip these silently.
+        # Lineage: nextclade for any reference carrying a dataset, pangolin
+        # only where the taxid says SARS-CoV-2. A target that qualifies for
+        # neither simply produces no lineage output.
         expand(
             join(WORKPATH, "{sample}", "lineage", "{target}",
                  "{sample}.{target}.pangolin_lineage.csv"),
@@ -275,12 +246,6 @@ rule all:
                  "{sample}.{target}.nextclade.tsv"),
             sample=SAMPLES,
             target=NEXTCLADE_TARGETS,
-        ),
-        expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.freyja.demix"),
-            sample=SAMPLES,
-            target=FREYJA_TARGETS,
         ),
 
 # ── Rule imports ──────────────────────────────────────────────────────────────

@@ -271,13 +271,6 @@
         "output": "lineage/{rule}.%j.out",
         "error": "lineage/{rule}.%j.err"
     },
-    "freyja_demix": {
-        "threads": "8",
-        "mem": "32g",
-        "time": "0-12:00:00",
-        "output": "lineage/{rule}.%j.out",
-        "error": "lineage/{rule}.%j.err"
-    },
     "make_variants_matrix": {
         "threads": "1",
         "mem": "8g",

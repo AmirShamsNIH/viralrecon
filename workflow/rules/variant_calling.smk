@@ -426,12 +426,10 @@ bcftools consensus {params.extra} \
     --output "{output.consensus}" \
     "{input.vcf}" >> "{log}" 2>&1
 
-# Header is sample.target, matching the file-naming convention and, more
-# importantly, matching how Freyja names its sample. Pangolin and Nextclade
-# take their MultiQC sample name from this header while Freyja takes it from
-# the filename; with an underscore here the same sample arrived in MultiQC
-# under two different keys and rendered as two rows, which defeats the point
-# of running three callers side by side.
+# Header is sample.target, matching the file-naming convention that other
+# tools derive their MultiQC sample name from. Pangolin and Nextclade take
+# theirs from this header instead, so with an underscore here the same sample
+# arrived in MultiQC under two different keys and rendered as two rows.
 # (Braces are avoided above: Snakemake formats comments in a shell body too.)
 HEADER="{wildcards.sample}.{wildcards.target}"
 sed -i "s/^>.*/>$HEADER/" "{output.consensus}" >> "{log}" 2>&1
