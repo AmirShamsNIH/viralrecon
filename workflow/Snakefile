@@ -138,15 +138,28 @@ def nextclade_dataset_for(target):
 
 NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
 
-# Freyja needs a narrower gate than pangolin and nextclade, which is not a
-# configuration nicety but a coordinate constraint. Pangolin and nextclade read
-# a consensus FASTA and are indifferent to which reference produced it. Freyja
-# reads a BAM in reference coordinates and matches it against barcodes keyed to
-# Wuhan-Hu-1, so against any other reference its answer is meaningless even
-# when it does not crash. Running PP115423.1 (29,721 bp) through it raised
-# KeyError 29735 - a Wuhan coordinate that does not exist in that genome.
+# Freyja is gated per barcode set, not per virus. It deconvolutes a mixture
+# against barcodes for one of about fifteen pathogens (freyja demix
+# --pathogen), or against a custom barcode file, so it is not a SARS-CoV-2-only
+# tool. What it cannot do is cross references: it reads a BAM in reference
+# coordinates and matches positions against barcodes keyed to that pathogen's
+# own reference, so the two must be the same genome. Running PP115423.1
+# (29,721 bp) against the SARS-CoV-2 barcodes raised KeyError 29735 - a
+# Wuhan-Hu-1 coordinate that does not exist in that reference.
+#
+# So the pathogen belongs to the reference, exactly like the nextclade dataset:
+# `viralrecon build --freyja-pathogen MEASLESgenome` records it in genome.json
+# only for a reference it actually applies to, and carrying one is the gate.
+# freyja_targets remains as a name match for references registered before this
+# existed.
+def freyja_pathogen_for(target):
+    entry = _TARGET_REFS.get(target) or {}
+    return entry.get("freyja_pathogen", "")
+
 _FREYJA_MATCH  = config["parameters"]["lineage"].get("freyja_targets", [])
-FREYJA_TARGETS = [t for t in TARGETS if any(m in t for m in _FREYJA_MATCH)]
+FREYJA_TARGETS = [t for t in TARGETS
+                  if freyja_pathogen_for(t)
+                  or any(m in t for m in _FREYJA_MATCH)]
 
 # Union, for the places that only ask "does this target have any lineage
 # output at all" - the final_report lineage directory and the MultiQC ordering.

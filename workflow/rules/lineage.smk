@@ -198,6 +198,10 @@ rule freyja_demix:
         extra_demix    = config["parameters"]["lineage"]["freyja_demix"],
         extra_boot     = config["parameters"]["lineage"].get("freyja_boot", "--nb 100"),
         skip_boot      = config["parameters"]["lineage"].get("skip_freyja_boot", "false"),
+        # Empty for a reference registered before --freyja-pathogen existed,
+        # which leaves freyja on its own default of SARS-CoV-2 - the behaviour
+        # those references were gated for.
+        pathogen       = lambda wc: freyja_pathogen_for(wc.target),
         boot_base      = join(WORKPATH, "{sample}", "lineage", "{target}",
                               "{sample}.{target}.freyja.boot"),
         refname        = "{target}",
@@ -222,6 +226,13 @@ mkdir -p "{params.outdir}"
 # the same reasoning in pangolin_lineage.
 FREYJA_OK=1
 
+# Barcodes are per pathogen and keyed to that pathogen's own reference, so the
+# pathogen travels with the reference rather than being a run-wide setting.
+PATHOGEN_OPT=""
+if [ -n "{params.pathogen}" ]; then
+    PATHOGEN_OPT="--pathogen {params.pathogen}"
+fi
+
 # Step 1: variant calling + depth (samtools/iVar run inside freyja)
 freyja variants {params.extra_variants} \
     --ref "{input.fa}" \
@@ -236,7 +247,7 @@ fi
 
 # Step 2: deconvolute lineage abundances against the bundled barcodes
 if [ "$FREYJA_OK" = "1" ]; then
-    freyja demix {params.extra_demix} \
+    freyja demix {params.extra_demix} $PATHOGEN_OPT \
         "{output.variants}" "{output.depths}" \
         --output "{output.demix}" >> "{log}" 2>&1 || FREYJA_OK=0
 fi
@@ -257,7 +268,7 @@ if [ "{params.skip_boot}" = "true" ]; then
     echo "skip_freyja_boot=true; not bootstrapping" >> "{log}"
     : > "{output.boot_lin}"; : > "{output.boot_sum}"
 else
-    freyja boot {params.extra_boot} --nt {threads} \\
+    freyja boot {params.extra_boot} $PATHOGEN_OPT --nt {threads} \\
         --output_base "{params.boot_base}" \\
         "{output.variants}" "{output.depths}" >> "{log}" 2>&1
     # freyja writes <base>_lineages.csv / <base>_summarized.csv, which with this

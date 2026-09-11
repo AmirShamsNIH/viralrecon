@@ -546,7 +546,7 @@ def _missing_artifacts(genome_dir, name):
 
 def _update_genome_json(genome_json_path, canonical_name, platforms,
                         fasta_path, gff_path, taxid=None, notes=None,
-                        nextclade_dataset=None):
+                        nextclade_dataset=None, freyja_pathogen=None):
     """
     Add or update one target in genome.json, preserving every other entry.
 
@@ -615,6 +615,12 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
                 entry["nextclade_dataset"] = prior["nextclade_dataset"]
         elif nextclade_dataset != "":
             entry["nextclade_dataset"] = nextclade_dataset
+
+        if freyja_pathogen is None:
+            if prior.get("freyja_pathogen"):
+                entry["freyja_pathogen"] = prior["freyja_pathogen"]
+        elif freyja_pathogen != "":
+            entry["freyja_pathogen"] = freyja_pathogen
         tgts[canonical_name] = entry
     if existing:
         print("  updating existing entry for '{}'".format(canonical_name))
@@ -723,6 +729,7 @@ def build(sub_args, repo_path):
     force = getattr(sub_args, "force", False)
 
     nc_dataset = getattr(sub_args, "nextclade_dataset", None)
+    fj_pathogen = getattr(sub_args, "freyja_pathogen", None)
 
     # ── Already built? Verify, then skip ────────────────────────────────────
     # Registration alone is not evidence: an entry can outlive a build that was
@@ -782,13 +789,22 @@ def build(sub_args, repo_path):
                 nc_dataset, genome_dir,
                 os.path.join(genome_dir, "build_index.log"))
 
-        if taxid or nc_path:
+        # Unlike the dataset, the pathogen is a name rather than a download,
+        # so backfilling it is only a registry edit.
+        fj_new = fj_pathogen if fj_pathogen and \
+            fj_pathogen != _entry.get("freyja_pathogen") else None
+        if fj_new:
+            print("\n  recording freyja pathogen '{}' for '{}'"
+                  .format(fj_new, canonical_name))
+
+        if taxid or nc_path or fj_new:
             _update_genome_json(
                 genome_json, canonical_name, platforms,
                 os.path.join(genome_dir, "{}.fa".format(canonical_name)),
                 _existing_annotation(genome_dir),
                 taxid=taxid,
                 nextclade_dataset=nc_path,
+                freyja_pathogen=fj_new,
             )
         print("\n✓ Genome '{}' is already built and complete — skipping."
               .format(canonical_name))
@@ -851,6 +867,7 @@ def build(sub_args, repo_path):
         taxid=taxid,
         notes=getattr(sub_args, "notes", None),
         nextclade_dataset=nc_path,
+        freyja_pathogen=fj_pathogen,
     )
 
     print("\n✓ Genome '{}' ready.".format(canonical_name))

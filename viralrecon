@@ -119,6 +119,13 @@ def _sub_build(sub):
                    help="Local FASTA file to use instead of downloading from NCBI.")
     p.add_argument("--annotation",  default=None, metavar="GFF/GTF",
                    help="Local GFF3 or GTF annotation file to use instead of downloading.")
+    p.add_argument("--freyja-pathogen", default=None, metavar="NAME",
+                   help="Freyja barcode set this reference can be demixed "
+                        "against (e.g. SARS-CoV-2, MPX, MEASLESgenome, RSVa, "
+                        "H5Nx, DENV1). Barcodes are keyed to that pathogen's "
+                        "own reference coordinates, so set it only when this "
+                        "reference IS that genome. Recorded in genome.json; "
+                        "freyja runs only on targets that have one.")
     p.add_argument("--nextclade-dataset", default=None, metavar="NAME",
                    help="Nextclade dataset to download into the reference "
                         "directory (e.g. sars-cov-2, mpox, rsv_a, flu_h1n1pdm_ha). "
