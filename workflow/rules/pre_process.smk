@@ -238,6 +238,7 @@ rule kraken2_decon:
         r2         = rules.fastp_trim.output.r2 if PAIRED else [],
         report     = rules.kraken2_classify.output.report,
         classified = rules.kraken2_classify.output.classified,
+        script = join(WORKPATH, "workflow", "scripts", "kraken_deplete.py"),
     output:
         r1      = join(WORKPATH, "{sample}", "pre_process",
                        "{sample}.kraken2_decon.R1.fastq.gz"),
@@ -257,7 +258,6 @@ rule kraken2_decon:
                         t for t in config["parameters"]["pre_process"]
                         .get("kraken2_profile_taxids", "").split()
                         if t not in TARGET_TAXIDS]),
-        script     = join(WORKPATH, "workflow", "scripts", "kraken_deplete.py"),
     log:
         join(WORKPATH, "logfiles", "pre_process", "{sample}.kraken2_decon.log"),
     resources:
@@ -272,7 +272,7 @@ rule kraken2_decon:
 set -euo pipefail
 
 if [ "{params.paired}" = "True" ]; then
-    python3 "{params.script}" \
+    python3 "{input.script}" \
         --kraken-output "{input.classified}" --report "{input.report}" \
         --deplete-taxids {params.taxids} \
         --in1 "{input.r1}" --in2 "{input.r2}" \
@@ -281,7 +281,7 @@ if [ "{params.paired}" = "True" ]; then
         --profile "{output.profile}" --profile-taxids {params.profile_ids} \
         >> "{log}" 2>&1
 else
-    python3 "{params.script}" \
+    python3 "{input.script}" \
         --kraken-output "{input.classified}" --report "{input.report}" \
         --deplete-taxids {params.taxids} \
         --in1 "{input.r1}" --out1 "{output.r1}" \

@@ -12,6 +12,18 @@
 #   multiqc_report        – project-wide MultiQC (all stages, all samples)
 #   make_igv_session      – IGV XML session (BAMs + VCFs + consensus FASTAs)
 #   final_report          – copy per-sample stage MultiQC reports; write .done
+#
+# Every rule that runs a helper script declares that script as an input rather
+# than passing its path through params. Snakemake reruns a rule when an input is
+# newer than the output, so editing a script now rebuilds what it produces --
+# previously a fixed script left run_summary.tsv stale through relaunch after
+# relaunch, because a changed params value is not a rerun trigger for a script
+# invoked by path.
+#
+# This does not rebuild everything on every launch, even though `viralrecon run`
+# re-copies workflow/ into the run directory each time: copytree copies with
+# copy2, which preserves mtimes, and git only touches files whose content it
+# changes. So a script's mtime tracks when it was last actually edited.
 # ############################################################################
 
 from os.path import join
@@ -208,12 +220,12 @@ rule collect_mapping_summary:
                  "{sample}.{{target}}.bowtie2_map.raw.flagstat"),
             sample=SAMPLES,
         ),
+        script = join(WORKPATH, "workflow", "scripts", "collect_report.py"),
     output:
         summary_tsv = join(_FR, "{target}", "aggregate.{target}.mapping_summary.tsv"),
     params:
         rname  = "collect_mapping_summary",
         target = "{target}",
-        script = join(WORKPATH, "workflow", "scripts", "collect_report.py"),
     log:
         join(WORKPATH, "logfiles", "report", "collect_mapping_summary.{target}.log"),
     resources:
@@ -226,7 +238,7 @@ rule collect_mapping_summary:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
-python3 "{params.script}" \
+python3 "{input.script}" \
     --flagstats {input.flagstats} \
     --output "{output.summary_tsv}" \
     --target "{params.target}" >> "{log}" 2>&1
@@ -307,13 +319,13 @@ rule make_variants_long_table:
     """
     input:
         tbl = join(_FR, "{target}", "aggregate.{target}.snpeff.variants.txt"),
+        script = join(WORKPATH, "workflow", "scripts", "make_variants_long_table.py"),
     output:
         long_tbl = join(_FR, "{target}", "aggregate.{target}.variants_long.tsv"),
     params:
         rname   = "make_variants_long_table",
         target  = "{target}",
         samples = SAMPLES,
-        script  = join(WORKPATH, "workflow", "scripts", "make_variants_long_table.py"),
     log:
         join(WORKPATH, "logfiles", "report", "make_variants_long_table.{target}.log"),
     resources:
@@ -325,7 +337,7 @@ rule make_variants_long_table:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
-python3 "{params.script}" \
+python3 "{input.script}" \
     --input   "{input.tbl}" \
     --output  "{output.long_tbl}" \
     --target  "{params.target}" \
@@ -364,13 +376,13 @@ rule make_variants_matrix:
             _FR, wc.target,
             "aggregate.%s.snpeff.variants.txt" % wc.target if wc.vset == "raw"
             else "aggregate.%s.filtered.variants.txt" % wc.target),
+        script = join(WORKPATH, "workflow", "scripts", "make_variants_matrix.py"),
     output:
         matrix = join(_FR, "{target}",
                       "aggregate.{target}.variants_matrix.{vset}.tsv"),
     params:
         rname   = "make_variants_matrix",
         samples = SAMPLES,
-        script  = join(WORKPATH, "workflow", "scripts", "make_variants_matrix.py"),
     log:
         join(WORKPATH, "logfiles", "report",
              "make_variants_matrix.{target}.{vset}.log"),
@@ -383,7 +395,7 @@ rule make_variants_matrix:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
-python3 "{params.script}" \
+python3 "{input.script}" \
     --input   "{input.tbl}" \
     --output  "{output.matrix}" \
     --samples {params.samples} \
@@ -521,6 +533,7 @@ rule plot_report_figures:
                  "{sample}.kraken2_decon.composition.tsv"),
             sample=SAMPLES,
         ),
+        script = join(WORKPATH, "workflow", "scripts", "plot_report_figures.py"),
     output:
         done = join(_FR, "{target}", "figures", ".figures_done"),
     params:
@@ -529,7 +542,6 @@ rule plot_report_figures:
         workpath  = WORKPATH,
         samples   = SAMPLES,
         target    = "{target}",
-        script    = join(WORKPATH, "workflow", "scripts", "plot_report_figures.py"),
         min_depth = config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
         taxids    = TARGET_TAXIDS,
     log:
@@ -544,7 +556,7 @@ rule plot_report_figures:
     shell: """
 set -euo pipefail
 mkdir -p "{params.outdir}"
-python3 "{params.script}" \
+python3 "{input.script}" \
     --workpath "{params.workpath}" \
     --outdir   "{params.outdir}" \
     --target   "{params.target}" \
@@ -811,12 +823,12 @@ rule make_igv_session:
             sample=SAMPLES,
         ),
         fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        script = join(WORKPATH, "workflow", "scripts", "make_igv_session.py"),
     output:
         xml = join(_FR, "{target}", "igv_session.{target}.xml"),
     params:
         rname  = "make_igv_session",
         target = "{target}",
-        script = join(WORKPATH, "workflow", "scripts", "make_igv_session.py"),
     log:
         join(WORKPATH, "logfiles", "report", "make_igv_session.{target}.log"),
     resources:
@@ -828,7 +840,7 @@ rule make_igv_session:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
-python3 "{params.script}" \\
+python3 "{input.script}" \\
     --target  "{params.target}" \\
     --ref     "{input.fa}" \\
     --bams    {input.bams} \\
@@ -929,6 +941,7 @@ rule final_report:
             join(_FR, "{target}", "igv_report.{target}.html"),
             target=TARGETS,
         ),
+        script = join(WORKPATH, "workflow", "scripts", "collect_final_report.py"),
     output:
         flag    = join(_FR, ".done"),
         summary = join(_FR, "run_summary.tsv"),
@@ -941,7 +954,6 @@ rule final_report:
         lineage  = LINEAGE_TARGETS if LINEAGE_TARGETS else [],
         taxids   = ["%s=%s" % (t, (_TARGET_REFS.get(t) or {}).get("taxid", ""))
                     for t in TARGETS if (_TARGET_REFS.get(t) or {}).get("taxid")],
-        script   = join(WORKPATH, "workflow", "scripts", "collect_final_report.py"),
         min_cov  = config["parameters"]["variant_calling"].get("min_genome_coverage", "0.80"),
         min_depth= config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
     log:
@@ -960,7 +972,7 @@ OUTDIR="{params.outdir}"
 WPATH="{params.workpath}"
 
 # ── Sort aggregates, pull in per-sample results, write run_summary.tsv ─────
-python3 "{params.script}" \
+python3 "{input.script}" \
     --workpath "$WPATH" \
     --outdir   "$OUTDIR" \
     --samples  {params.samples} \
