@@ -46,7 +46,6 @@
         "snpsift": "{ours}/snpsift_5.1d.sif",
         "mosdepth": "{ours}/mosdepth_0.3.3.sif",
         "quast": "{ours}/quast_5.3.0.sif",
-        "pangolin": "{ours}/pangolin_4.4-pdata-1.40.sif",
         "nextclade": "{ours}/nextclade_3.23.0.sif",
         "igvreports": "{ours}/igv-reports_1.16.0.sif",
         "_plotting_note": "report figures use matplotlib, which the pinned quast image already carries (3.10.0) - no separate image is pulled for them. If quast is ever bumped, check that matplotlib survives the bump.",

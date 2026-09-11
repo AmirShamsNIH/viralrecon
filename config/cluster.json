@@ -257,13 +257,6 @@
         "output": "report/{rule}.%j.out",
         "error": "report/{rule}.%j.err"
     },
-    "pangolin_lineage": {
-        "threads": "4",
-        "mem": "8g",
-        "time": "0-02:00:00",
-        "output": "lineage/{rule}.%j.out",
-        "error": "lineage/{rule}.%j.err"
-    },
     "nextclade_clade": {
         "threads": "4",
         "mem": "8g",

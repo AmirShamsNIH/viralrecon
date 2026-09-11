@@ -753,11 +753,6 @@ rule multiqc_report:
                  "{sample}.{target}.snpsift_filtered.variants.txt"),
             sample=SAMPLES, target=TARGETS,
         ),
-        pangolin = expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.pangolin_lineage.csv"),
-            sample=SAMPLES, target=PANGOLIN_TARGETS,
-        ),
         nextclade = expand(
             join(WORKPATH, "{sample}", "lineage", "{target}",
                  "{sample}.{target}.nextclade.csv"),
@@ -866,7 +861,7 @@ rule final_report:
     │   └── project_multiqc_report.html
     └── {target}/
         ├── consensus/   per-sample + combined consensus FASTA
-        ├── lineage/     pangolin / nextclade + lineage_summary.tsv
+        ├── lineage/     nextclade + lineage_summary.tsv
         ├── variants/    aggregate VCFs + variant tables
         ├── qc/          mapping, mosdepth, low-cov mask, kraken composition
         ├── igv_session.{target}.xml
@@ -886,11 +881,6 @@ rule final_report:
             join(WORKPATH, "{sample}", "pre_process", "kraken2",
                  "{sample}.kraken2_decon.composition.tsv"),
             sample=SAMPLES,
-        ),
-        pangolin = expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.pangolin_lineage.csv"),
-            sample=SAMPLES, target=PANGOLIN_TARGETS,
         ),
         nextclade = expand(
             join(WORKPATH, "{sample}", "lineage", "{target}",

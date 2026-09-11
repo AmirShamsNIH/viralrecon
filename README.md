@@ -43,7 +43,7 @@ Two design commitments make its results reproducible:
   appears anywhere in the workflow, or in the reference-building CLI. A cluster module
   can be upgraded or removed underneath a pipeline and its version is not recorded in
   the run directory; a pinned `.sif` path is. This matters most for tools that bundle a
-  database — pangolin, nextclade — where a floating version silently changes
+  database or dataset — nextclade — where a floating version silently changes
   lineage assignments.
 - **The pipeline is virus-agnostic.** Nothing outside the optional lineage stage assumes
   SARS-CoV-2. Targets are selected by accession, never by name, and a run may carry
@@ -68,7 +68,7 @@ Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optiona
 | 3 | **alignment** | Map to each target, QC the mapping | [Bowtie2][6] · [samtools][7] · [Picard][8] · [mosdepth][9] |
 | 4 | **variant_calling** | Call, normalise, annotate, build consensus | [FreeBayes][10] · [bcftools][7] · [SnpEff/SnpSift][11] · [GATK4][12] |
 | 5 | **report** | Aggregate across samples, assemble `final_report/` | bcftools · GATK4 · [QUAST][13] · [MultiQC][14] |
-| — | **lineage** *(opt.)* | Lineage / clade calls | [pangolin][15] · [Nextclade][16] |
+| — | **lineage** *(opt.)* | Clade assignment | [Nextclade][16] |
 
 #### Quality control and decontamination
 
@@ -119,24 +119,21 @@ Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optiona
 
 #### Lineage
 
-Each of the three callers is gated by what it can actually describe, because they are not
-equivalent:
+Nextclade is the only lineage caller, and it is gated by what it can actually describe:
 
-- **pangolin** — Pango nomenclature exists only for SARS-CoV-2 and its database ships
-  inside the image, so `pangolin_targets` is simply a list of accessions.
 - **Nextclade** — dataset-driven, and the dataset belongs to the reference. Fetch it at
   build time with `--nextclade-dataset`; the path is recorded in `genome.json` and
   nextclade runs on any target that has one. A target without a dataset is skipped rather
   than described against another virus's dataset, which would return confident nonsense
   instead of failing.
 
-Freyja was removed rather than gated. It demixes only the pathogens it carries curated
-barcodes for, and those barcodes are keyed to each pathogen's own reference coordinates,
-so most references could never use it. A stage that runs for a minority of targets
-complicates the report schema and the documentation for everyone who will never see
-output from it.
-
-Agreement between the callers is the point; disagreement is a finding.
+Pangolin and Freyja were removed rather than gated. Pango nomenclature exists for
+SARS-CoV-2 alone, and Freyja demixes only the pathogens it carries curated barcodes for,
+each keyed to that pathogen's own reference coordinates. Both could describe a fixed set
+of viruses and nothing else, and a pipeline for any virus should not carry a stage most
+references cannot use: it complicates the report schema, the gates and the documentation
+for everyone who will never see output from it. Nextclade generalises because a dataset
+can exist for any virus, and the dataset travels with the reference.
 
 ### 2.2 Dependencies
 
@@ -273,10 +270,7 @@ Submit it with `sbatch`, having run `module load python/3.10` first so the
 `run` step can find Snakemake.
 
 **Scratch.** The pipeline keeps its temporary files in `$OUTDIR/tmp` rather than
-`lscratch`, so no `--gres=lscratch` allocation is needed. One exception is
-deliberate: `pangolin_lineage` redirects `TMPDIR` to a node-local path, because
-scorpio opens a Unix domain socket for `multiprocessing` and those do not work
-on GPFS.
+`lscratch`, so no `--gres=lscratch` allocation is needed.
 
 ### 2.6 Platform profile: BigSky
 
@@ -358,10 +352,7 @@ export PATH=/data/rml_ngs/viralrecon/bin:/data/rml_ngs/viralrecon/sm_venv/bin:$P
 
 **Scratch.** `$OUTDIR/tmp` on GPFS is used for everything, as on Biowulf, so no
 `--gres=lscratch` is needed — which is just as well, since BigSky has no
-`/lscratch`. The `pangolin_lineage` exception still holds: it puts `TMPDIR` on
-node-local `/tmp` so scorpio can open a `multiprocessing` Unix socket, which GPFS
-does not support. `noexec` does not interfere with that — it blocks executing
-files, not binding sockets.
+`/lscratch`.
 
 ## 3. Run the pipeline
 
@@ -447,7 +438,6 @@ Frequently adjusted keys:
 | `consensus_min_depth` | `10` | Below this, consensus is masked `N` |
 | `min_genome_coverage` | `0.80` | Coverage below this raises a QC warning |
 | `min_mapped_reads` | `1000` | Below this, a target's downstream stages are skipped |
-| `pangolin_targets` | `["NC_045512", "PP115423"]` | Targets pangolin runs on |
 
 Nextclade has no list: it runs on whichever targets carry a `nextclade_dataset` path in
 `genome.json`, written at build time.
@@ -487,7 +477,7 @@ Twenty-three columns grouped as:
 | Mapping | `mapped_reads`, `mapped_pct`, `reads_used` | how much of it hit this target |
 | Assembly | `mean_depth`, `genome_length`, `consensus_masked_bases`, `pct_genome_covered` | how good the genome is |
 | Variants | `n_variants` | how much it differs from the reference |
-| Lineage | `pangolin_lineage`, `pangolin_qc`, `nextclade_clade`, `nextclade_qc`, `nextclade_coverage` | what strain it is, from three independent callers |
+| Lineage | `nextclade_clade`, `nextclade_qc`, `nextclade_coverage` | what clade it is |
 | Verdict | `qc_status` | **`pass`, or `WARN:` plus reasons** |
 
 **`qc_status` is the column to scan first.** `WARN:LOW_GENOME_COVERAGE`,
@@ -563,16 +553,16 @@ and the pair is what lets you tell a genuinely absent variant from a filtered on
 
 ### 4.5 What strain it is — `{target}/lineage/`
 
-Present only for targets the callers can describe (see §4.7).
+Present only for targets whose reference carries a Nextclade dataset (see §4.7).
 
 | file | caller | gives |
 |---|---|---|
-| `lineage_summary.tsv` | both | **side-by-side table, read this one** |
-| `{sample}.{target}.pangolin_lineage.csv` | pangolin | Pango lineage + QC |
+| `lineage_summary.tsv` | Nextclade | **per-sample table, read this one** |
 | `{sample}.{target}.nextclade.tsv` | Nextclade | clade, QC, mutation list |
 
-Two independent methods on purpose. **Agreement is the result; disagreement is a
-finding**, usually meaning a low-quality or genuinely mixed sample.
+`nextclade_qc` is the column to read beside the clade: a `bad` or `mediocre` call on a
+well-covered sample usually means a low-quality or genuinely mixed sample rather than a
+pipeline problem.
 
 ### 4.6 Whether to believe it — `{target}/qc/` and `multiqc/`
 
@@ -596,11 +586,8 @@ reference in IGV — the fastest way to eyeball a specific variant.
 
 An absent output can mean a stage did not apply, which is not a warning:
 
-- **No `lineage/` directory** — the target qualified for neither caller: no Nextclade
-  dataset on the reference, and a taxid that is not SARS-CoV-2.
-- **No pangolin files, but nextclade present** — Pango nomenclature exists for
-  SARS-CoV-2 alone, so pangolin is gated on the target's taxid while nextclade runs for
-  any reference carrying a dataset.
+- **No `lineage/` directory** — the reference carries no Nextclade dataset. Register one
+  with `viralrecon build --nextclade-dataset` if a dataset exists for that virus.
 - **A target missing downstream stages entirely** — mapping fell below `min_mapped_reads`,
   and `qc_status` says `LOW_MAPPED_READS`. One weak reference does not stop the others.
 
@@ -650,9 +637,7 @@ re-running later cannot silently pick up a changed repo.
 <sup>12.</sup> McKenna, A. *et al.* *The Genome Analysis Toolkit.* Genome Research (2010).
 <sup>13.</sup> Gurevich, A. *et al.* *QUAST: quality assessment tool for genome assemblies.* Bioinformatics (2013).
 <sup>14.</sup> Ewels, P. *et al.* *MultiQC: summarize analysis results for multiple tools and samples.* Bioinformatics (2016).
-<sup>15.</sup> O'Toole, Á. *et al.* *Assignment of epidemiological lineages in an emerging pandemic using the pangolin tool.* Virus Evolution (2021).
 <sup>16.</sup> Aksamentov, I. *et al.* *Nextclade: clade assignment, mutation calling and quality control.* JOSS (2021).
-<sup>17.</sup> Karthikeyan, S. *et al.* *Wastewater sequencing reveals early cryptic SARS-CoV-2 variant transmission.* Nature (2022).
 
 [1]: https://snakemake.readthedocs.io
 [2]: https://github.com/OpenGene/fastp
@@ -668,7 +653,6 @@ re-running later cannot silently pick up a changed repo.
 [12]: https://gatk.broadinstitute.org/
 [13]: https://quast.sourceforge.net/
 [14]: https://multiqc.info/
-[15]: https://github.com/cov-lineages/pangolin
 [16]: https://clades.nextstrain.org/
 
 ---

@@ -89,23 +89,10 @@ properties:
       lineage:
         type: object
         properties:
-          pangolin_taxids:
-            type: array
-            items: {type: string}
+          nextclade:
+            type: string
             description: >
-              NCBI taxids whose targets pangolin can describe -- in practice
-              2697049, since Pango nomenclature exists for SARS-CoV-2 and
-              nothing else. This is the primary gate: it asks what the virus
-              is rather than what the reference was named, so a SARS-CoV-2
-              isolate registered under any name is covered, and no other virus
-              ever is.
-          pangolin_targets:
-            type: array
-            items: {type: string}
-            description: >
-              Substrings matched against target names, for a target that should
-              be called despite carrying no taxid. Matched by accession rather
-              than a name prefix, since a prefix like "SARS" would wrongly catch
-              SARS-CoV-1. Nextclade is not listed here: it is gated on whether a
-              target carries a nextclade_dataset path in genome.json, which is
-              what makes it work for any virus with a dataset.
+              Extra flags for `nextclade run`. There is no target list here:
+              nextclade is gated on whether a reference carries a
+              nextclade_dataset path in genome.json, which is what lets the
+              stage work for any virus that has a dataset.

@@ -17,7 +17,7 @@
 #       │
 #       ├──►  report/{target}/: bcftools_merge (all samples) -> snpEff -> multiqc
 #       │
-#       └──►  lineage/{target}/: nextclade [any dataset] + pangolin [SARS]
+#       └──►  lineage/{target}/: nextclade [reference carries a dataset]
 #
 # Configuration
 # -------------
@@ -94,37 +94,14 @@ TARGET_TAXIDS = sorted({
     if _t in TARGETS and isinstance(_e, dict) and _e.get("taxid")
 })
 
-# Each lineage caller gets a gate matching what it can actually describe.
-#
-# pangolin: Pango nomenclature exists only for SARS-CoV-2, and its database is
-# baked into the image, so the gate asks one question -- is this target
-# SARS-CoV-2? A taxid answers it directly, and every reference carries one, so
-# a SARS-CoV-2 isolate registered under any name at all is covered without
-# anyone remembering to add it to a list. Pangolin reads the consensus FASTA
-# and is indifferent to which reference produced it, so mapping to a 2021
-# isolate rather than Wuhan-Hu-1 changes nothing about the call.
-#
-# pangolin_targets stays as a name match beside it, for a target that should be
-# called despite carrying no taxid. Both default empty: a config that forgets
-# them should run no lineage calls rather than quietly assume every target is
-# SARS-CoV-2.
-_PANGOLIN_TAXIDS = {str(t) for t in
-                    config["parameters"]["lineage"].get("pangolin_taxids", [])}
-_PANGOLIN_MATCH  = config["parameters"]["lineage"].get("pangolin_targets", [])
-
-def _pangolin_applies(target):
-    entry = config["references"]["target"].get(PLATFORM, {}).get(target) or {}
-    if _PANGOLIN_TAXIDS and str(entry.get("taxid", "")) in _PANGOLIN_TAXIDS:
-        return True
-    return any(m in target for m in _PANGOLIN_MATCH)
-
-PANGOLIN_TARGETS = [t for t in TARGETS if _pangolin_applies(t)]
-
-# nextclade: dataset-driven, and the dataset belongs to the reference. A target
+# Lineage is nextclade alone, and the gate is the reference itself. A target
 # carries its own dataset path in genome.json, written by `viralrecon build
-# --nextclade-dataset`. Presence of that path is the gate: a target without one
+# --nextclade-dataset`; presence of that path is the gate. A target without one
 # is skipped rather than described against the wrong virus's dataset, which
 # would return confident nonsense instead of failing.
+#
+# This is what makes the stage work for any virus: adding a new one is a
+# reference with a dataset, not a code change.
 _TARGET_REFS = config["references"]["target"][PLATFORM]
 
 def nextclade_dataset_for(target):
@@ -133,10 +110,10 @@ def nextclade_dataset_for(target):
 
 NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
 
-# Union, for the places that only ask "does this target have any lineage
-# output at all" - the final_report lineage directory and the MultiQC ordering.
-LINEAGE_TARGETS = [t for t in TARGETS
-                   if t in PANGOLIN_TARGETS or t in NEXTCLADE_TARGETS]
+# Kept as its own name for the places that ask only "does this target produce
+# lineage output at all" - the final_report lineage directory and the MultiQC
+# ordering - so a second caller could return without touching them.
+LINEAGE_TARGETS = list(NEXTCLADE_TARGETS)
 
 # ── Cluster resource map ──────────────────────────────────────────────────────
 with open(join(WORKPATH, "config", "cluster.json")) as fh:
@@ -232,15 +209,8 @@ rule all:
         # (final_report/.done depends on all bcftools_merge, quast, igv, variants-table
         #  outputs which are written directly into final_report/{target}/)
         join(WORKPATH, "final_report", ".done"),
-        # Lineage: nextclade for any reference carrying a dataset, pangolin
-        # only where the taxid says SARS-CoV-2. A target that qualifies for
-        # neither simply produces no lineage output.
-        expand(
-            join(WORKPATH, "{sample}", "lineage", "{target}",
-                 "{sample}.{target}.pangolin_lineage.csv"),
-            sample=SAMPLES,
-            target=PANGOLIN_TARGETS,
-        ),
+        # Lineage: nextclade for any reference carrying a dataset. A target
+        # without one simply produces no lineage output.
         expand(
             join(WORKPATH, "{sample}", "lineage", "{target}",
                  "{sample}.{target}.nextclade.tsv"),

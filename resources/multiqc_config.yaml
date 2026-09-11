@@ -40,7 +40,6 @@ module_order:
   - mosdepth
   - bcftools
   - snpeff
-  - pangolin
   - nextclade
 
 table_columns_visible:

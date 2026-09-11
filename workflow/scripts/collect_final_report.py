@@ -13,7 +13,7 @@ final_report/
   multiqc/                            project-wide MultiQC
   {target}/
     consensus/                        per-sample + combined consensus FASTA
-    lineage/                          pangolin / nextclade + summary
+    lineage/                          nextclade + summary
     variants/                         aggregate VCFs and variant tables
     qc/                               mapping, coverage, contamination profile
     igv_session.{target}.xml
@@ -106,24 +106,21 @@ def stub_reason(path, marker):
         return False
 
 
-def lineage_failures(pang, next_):
+def lineage_failures(next_):
     """
-    Name the lineage callers that ran and failed for one sample x target.
+    Name the lineage caller if it ran and failed for one sample x target.
 
-    The callers are non-fatal by design: a failure stubs their outputs so the
+    The caller is non-fatal by design: a failure stubs their outputs so the
     run completes, which is right, but it also means a failure is invisible in
     a summary that only shows blank columns. This turns each stub back into a
     named reason for qc_status.
 
-    A missing file is not a failure. A caller that was gated out for this
-    target - pangolin against a virus with no Pango nomenclature, nextclade
-    against a reference carrying no dataset - writes nothing at all, and that
-    is a deliberate skip rather than something to warn about. Only a file that
+    A missing file is not a failure. A target whose reference carries no
+    Nextclade dataset is gated out and writes nothing at all, which is a
+    deliberate skip rather than something to warn about. Only a file that
     exists and carries a stub marker counts here.
     """
     failed = []
-    if stub_reason(pang, "pangolin_error"):
-        failed.append("PANGOLIN_FAILED")
     if stub_reason(next_, "nextclade_error"):
         failed.append("NEXTCLADE_FAILED")
     return failed
@@ -151,13 +148,6 @@ def target_failures(FR, target):
     if exists(figdir) and not glob.glob(join(figdir, "*.png")):
         failed.append("FIGURES_MISSING")
     return failed
-
-
-def pangolin_call(path):
-    rows = list(csv.DictReader(open(path))) if exists(path) else []
-    if not rows:
-        return "", ""
-    return rows[0].get("lineage", ""), rows[0].get("qc_status", "")
 
 
 def nextclade_call(path):
@@ -215,7 +205,6 @@ COLUMNS = [
     "mapped_reads", "mapped_pct", "reads_used", "mean_depth", "qc_status",
     "genome_length", "consensus_masked_bases", "pct_genome_covered",
     "n_variants",
-    "pangolin_lineage", "pangolin_qc",
     "nextclade_clade", "nextclade_qc", "nextclade_coverage",
 ]
 
@@ -304,13 +293,9 @@ def main():
             _copy(join(al, "mosdepth", "%s.%s.mosdepth.summary.txt" % (s, target)), qc_d)
             _copy(join(al, "%s.%s.bowtie2_map.raw.flagstat" % (s, target)), qc_d)
 
-            pang = join(ln, "%s.%s.pangolin_lineage.csv" % (s, target))
             next_ = join(ln, "%s.%s.nextclade.tsv" % (s, target))
             if target in lineage_targets:
-                # The .csv twin exists only so MultiQC can detect it; the
-                # collector copies the human-readable forms.
-                for f in (pang, next_):
-                    _copy(f, lin_d)
+                _copy(next_, lin_d)
 
             k = kraken_composition(comp)
             summ = read_tsv_rows(join(k2, "%s.kraken2_decon.summary.tsv" % s))
@@ -335,10 +320,9 @@ def main():
                 covered = "%.4f" % frac
                 if frac < a.min_genome_coverage:
                     reasons.append("LOW_GENOME_COVERAGE")
-            reasons.extend(lineage_failures(pang, next_))
+            reasons.extend(lineage_failures(next_))
             reasons.extend(tgt_failures)
             qc = "pass" if not reasons else "WARN:" + "+".join(reasons)
-            pl, pq = pangolin_call(pang)
             nc, nq, ncov = nextclade_call(next_)
 
             rows.append({
@@ -356,7 +340,6 @@ def main():
                 "consensus_masked_bases": masked,
                 "pct_genome_covered": covered,
                 "n_variants": count_variants(agg_vcf, s),
-                "pangolin_lineage": pl, "pangolin_qc": pq,
                 "nextclade_clade": nc, "nextclade_qc": nq,
                 "nextclade_coverage": ncov,
             })
@@ -371,13 +354,12 @@ def main():
             lin_summary = join(lin_d, "lineage_summary.tsv")
             with open(lin_summary, "w", newline="") as fh:
                 w = csv.writer(fh, delimiter="\t")
-                w.writerow(["sample", "pangolin_lineage", "pangolin_qc",
-                            "nextclade_clade", "nextclade_qc"])
+                w.writerow(["sample", "nextclade_clade", "nextclade_qc",
+                            "nextclade_coverage"])
                 for r in rows:
                     if r["target"] == target:
-                        w.writerow([r["sample"], r["pangolin_lineage"],
-                                    r["pangolin_qc"], r["nextclade_clade"],
-                                    r["nextclade_qc"]])
+                        w.writerow([r["sample"], r["nextclade_clade"],
+                                    r["nextclade_qc"], r["nextclade_coverage"]])
 
     with open(join(FR, "run_summary.tsv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=COLUMNS, delimiter="\t",

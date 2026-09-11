@@ -48,7 +48,6 @@
                 "igv_downsample_bam"
             ],
             "lineage": [
-                "pangolin_lineage",
                 "nextclade_clade"
             ]
         }
@@ -98,15 +97,7 @@
             "igv_target_depth": "200"
         },
         "lineage": {
-            "pangolin": "--analysis-mode accurate",
-            "nextclade": "",
-            "pangolin_targets": [
-                "NC_045512",
-                "PP115423"
-            ],
-            "pangolin_taxids": [
-                "2697049"
-            ]
+            "nextclade": ""
         }
     },
     "paths": {
