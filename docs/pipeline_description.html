@@ -1,0 +1,550 @@
+<title>viralrecon Pipeline Description</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F4F7F6;
+  --paper:#FFFFFF;
+  --ink:#14201E;
+  --muted:#56665F;
+  --rule:#D3DDD9;
+  --accent:#0E6B5F;
+  --accent-soft:#DCEDE9;
+  --warn:#9A5B00;
+  --warn-soft:#F7EBD6;
+  --good:#1F7A45;
+  --good-soft:#DDF0E3;
+  --A:#2F8F5B; --C:#2F6DB5; --G:#B7791F; --T:#B84A3E;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1413; --paper:#131C1B; --ink:#E2ECE8; --muted:#94A7A0; --rule:#24322F;
+    --accent:#52C2AE; --accent-soft:#16302B; --warn:#E2A94A; --warn-soft:#2E2412;
+    --good:#6BCB8E; --good-soft:#14291C;
+    --A:#5CC48A; --C:#6EA6EE; --G:#E0B060; --T:#E8826F;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1413; --paper:#131C1B; --ink:#E2ECE8; --muted:#94A7A0; --rule:#24322F;
+  --accent:#52C2AE; --accent-soft:#16302B; --warn:#E2A94A; --warn-soft:#2E2412;
+  --good:#6BCB8E; --good-soft:#14291C;
+  --A:#5CC48A; --C:#6EA6EE; --G:#E0B060; --T:#E8826F;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+h1,h2,h3{font-family:var(--display);font-stretch:112%;text-wrap:balance;margin:0;line-height:1.12}
+code,.mono{font-family:var(--mono);font-size:.86em}
+p{margin:0}
+
+.shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:56px;max-width:1180px;margin:0 auto;padding:0 32px}
+@media (max-width:900px){.shell{grid-template-columns:1fr;gap:0;padding:0 20px}.rail{display:none}}
+
+/* ---------- masthead ---------- */
+.mast{max-width:1180px;margin:0 auto;padding:56px 32px 40px}
+@media (max-width:900px){.mast{padding:40px 20px 28px}}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.mast h1{font-size:clamp(40px,6vw,68px);font-weight:800;letter-spacing:-.01em;margin-top:14px}
+.mast h1 span{color:var(--accent)}
+.lede{font-size:20px;line-height:1.5;max-width:40ch;margin-top:18px;color:var(--ink)}
+.lede-sub{max-width:66ch;margin-top:14px;color:var(--muted)}
+
+/* read strip: a FASTQ read turned into a nucleotide bar */
+.readstrip{margin-top:34px;display:flex;flex-direction:column;gap:8px}
+.bases{display:flex;height:10px;border-radius:2px;overflow:hidden}
+.bases i{flex:1}
+.readstrip .cap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+.facts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:34px}
+@media (max-width:760px){.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fact{background:var(--paper);padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.fact b{font-family:var(--display);font-stretch:112%;font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.fact span{font-size:13px;color:var(--muted);line-height:1.35}
+.facts-note{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* ---------- rail ---------- */
+.rail{position:sticky;top:24px;align-self:start;padding-top:8px}
+.rail ol{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--rule)}
+.rail a{display:flex;gap:10px;align-items:baseline;padding:6px 0 6px 14px;margin-left:-1px;border-left:2px solid transparent;color:var(--muted);text-decoration:none;font-size:14px;line-height:1.3}
+.rail a:hover{color:var(--ink);border-left-color:var(--accent)}
+.rail a .n{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:1.4em}
+.rail .grp{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 0}
+
+/* ---------- content ---------- */
+main{min-width:0;padding-bottom:96px}
+section{padding:44px 0;border-top:1px solid var(--rule)}
+section:first-child{border-top:0;padding-top:8px}
+section > h2{font-size:30px;font-weight:800}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;display:block}
+.prose{max-width:68ch;display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.prose strong{font-weight:600}
+
+/* questions */
+.questions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:24px}
+@media (max-width:640px){.questions{grid-template-columns:1fr}}
+.q{background:var(--paper);padding:20px 22px;display:flex;flex-direction:column;gap:6px}
+.q h3{font-size:18px;font-weight:600}
+.q p{color:var(--muted);font-size:15px}
+.q .ans{font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:auto;padding-top:8px}
+
+/* flow */
+.flow{margin-top:26px;overflow-x:auto}
+.flow ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:0;min-width:840px}
+.flow li{position:relative;padding:14px 14px 16px;border-top:3px solid var(--accent);background:var(--paper);border-right:1px solid var(--rule)}
+.flow li:last-child{border-right:0}
+.flow li.opt{border-top-style:dashed}
+.flow .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.flow b{display:block;font-family:var(--display);font-stretch:112%;font-size:15px;font-weight:600;margin-top:4px;line-height:1.2}
+.flow em{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.35}
+.flow-legend{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:36px;margin-top:22px}
+@media (max-width:1060px){.stage{grid-template-columns:1fr;gap:20px}}
+.stage .prose{margin-top:0}
+.steps{display:flex;flex-direction:column;gap:18px;margin-top:22px;max-width:68ch}
+.step h3{font-size:17px;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.step h3 .tool{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted)}
+.step p{margin-top:6px}
+.why{color:var(--muted)}
+.why::before{content:"Why it matters — ";font-weight:600;color:var(--ink)}
+
+.spec{background:var(--paper);border:1px solid var(--rule);padding:18px 18px 8px;align-self:start}
+.spec h4{margin:0 0 10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.spec dl{margin:0;display:grid;grid-template-columns:1fr;gap:0}
+.spec dt{font-size:13px;color:var(--muted);padding-top:10px;border-top:1px solid var(--rule)}
+.spec dt:first-of-type{border-top:0;padding-top:0}
+.spec dd{margin:2px 0 10px;font-family:var(--mono);font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
+.out{margin-top:20px;max-width:68ch;font-size:14px;color:var(--muted)}
+.out code{color:var(--ink)}
+
+/* features */
+.features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 40px;margin-top:26px}
+@media (max-width:760px){.features{grid-template-columns:1fr}}
+.feature{display:flex;flex-direction:column;gap:6px;padding-top:14px;border-top:2px solid var(--ink)}
+.feature h3{font-size:18px;font-weight:600}
+.feature p{color:var(--muted);font-size:15px}
+
+/* validation table */
+.tablewrap{overflow-x:auto;margin-top:22px;border:1px solid var(--rule);background:var(--paper)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--ground)}
+td.num{font-variant-numeric:tabular-nums;text-align:right;font-family:var(--mono);font-size:13px}
+th.num{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+td.sample{font-family:var(--mono);font-size:13px}
+.pill{display:inline-block;font-family:var(--mono);font-size:12px;padding:1px 8px;border-radius:999px;line-height:1.6}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.flat{background:var(--accent-soft);color:var(--accent)}
+.split th.grp{text-align:center;border-left:1px solid var(--rule)}
+.split td.edge{border-left:1px solid var(--rule)}
+
+.callout{margin-top:22px;max-width:68ch;padding:16px 20px;background:var(--accent-soft);border-left:3px solid var(--accent)}
+.callout p + p{margin-top:8px}
+
+/* deliverables */
+.tree{margin-top:22px;background:var(--paper);border:1px solid var(--rule);padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.75;white-space:pre;color:var(--ink)}
+.tree .c{color:var(--muted)}
+.tree .h{color:var(--accent)}
+
+.scope{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:22px}
+@media (max-width:640px){.scope{grid-template-columns:1fr}}
+.scope > div{background:var(--paper);padding:18px 20px}
+.scope h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.scope ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--muted)}
+
+footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+
+<header class="mast">
+  <div class="eyebrow">NIAID · RTB Genomics Research Section · Pipeline brief</div>
+  <h1>viral<span>recon</span></h1>
+  <p class="lede">From raw sequencing reads to an annotated, clade-assigned viral genome — for any virus, in one reproducible run.</p>
+  <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single report a scientist opens first. It runs on NIH Biowulf and on NIAID's BigSky cluster.</p>
+
+  <div class="readstrip" aria-hidden="true">
+    <div class="bases" id="bases"></div>
+    <div class="cap"><span>raw read</span><span>A · C · G · T</span><span>consensus genome</span></div>
+  </div>
+
+  <div class="facts" role="list">
+    <div class="fact" role="listitem"><b>16 / 16</b><span>sample × reference results passed QC</span></div>
+    <div class="fact" role="listitem"><b>353</b><span>compute jobs, 0 failed</span></div>
+    <div class="fact" role="listitem"><b>9 h 51 m</b><span>wall time, 8 samples × 2 references</span></div>
+    <div class="fact" role="listitem"><b>21</b><span>version-pinned container images</span></div>
+    <div class="fact" role="listitem"><b>7 / 7</b><span>variants reproduced vs. the RML reference analysis</span></div>
+  </div>
+  <p class="facts-note">Figures from the NIAID_1409 validation run on Biowulf, September 2026.</p>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Contents">
+    <div class="grp">Overview</div>
+    <ol>
+      <li><a href="#purpose"><span class="n">·</span>What it answers</a></li>
+      <li><a href="#flow"><span class="n">·</span>The workflow</a></li>
+    </ol>
+    <div class="grp">Stages</div>
+    <ol>
+      <li><a href="#reference"><span class="n">1</span>Reference build</a></li>
+      <li><a href="#preprocess"><span class="n">2</span>Read clean-up</a></li>
+      <li><a href="#composition"><span class="n">3</span>Composition &amp; depletion</a></li>
+      <li><a href="#alignment"><span class="n">4</span>Alignment</a></li>
+      <li><a href="#variants"><span class="n">5</span>Variant calling</a></li>
+      <li><a href="#consensus"><span class="n">6</span>Consensus genome</a></li>
+      <li><a href="#clade"><span class="n">7</span>Clade assignment</a></li>
+      <li><a href="#report"><span class="n">8</span>Reporting</a></li>
+    </ol>
+    <div class="grp">Value</div>
+    <ol>
+      <li><a href="#features"><span class="n">·</span>Key features</a></li>
+      <li><a href="#validation"><span class="n">·</span>Validation</a></li>
+      <li><a href="#deliverables"><span class="n">·</span>What you receive</a></li>
+      <li><a href="#scope"><span class="n">·</span>Scope</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="purpose">
+      <span class="kicker">Overview</span>
+      <h2>Four questions, one pass</h2>
+      <div class="prose">
+        <p>Sequencing a virus straight from a sample answers several questions at once. Answered separately, with scripts rewritten per project, results drift between analysts and cannot be reproduced a year later. viralrecon answers them together, with every tool and parameter recorded alongside the result.</p>
+      </div>
+      <div class="questions">
+        <div class="q"><h3>What is in the sample?</h3><p>Viral, human and bacterial read fractions, so low coverage can be traced to the library rather than blamed on the analysis.</p><span class="ans">→ Kraken2 · Krona</span></div>
+        <div class="q"><h3>What does the genome look like?</h3><p>A consensus sequence per sample and reference, with every low-evidence position masked instead of guessed.</p><span class="ans">→ consensus FASTA · QUAST</span></div>
+        <div class="q"><h3>How does it differ from the reference?</h3><p>Fixed mutations and minority variants down to 2% frequency, annotated with their effect on each protein.</p><span class="ans">→ FreeBayes · SnpEff</span></div>
+        <div class="q"><h3>Which known clade is it?</h3><p>Placement on the published phylogeny for any virus with a Nextclade dataset, with a quality verdict.</p><span class="ans">→ Nextclade</span></div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <span class="kicker">Overview</span>
+      <h2>The workflow</h2>
+      <div class="prose">
+        <p>Every sample is processed against every selected reference. A run can carry several unrelated viruses at once; each result is namespaced <code>sample.reference</code> so they cannot mix. Steps run in this order, scheduled as cluster jobs on SLURM by Snakemake.</p>
+      </div>
+      <div class="flow">
+        <ol>
+          <li><span class="n">1</span><b>Reference build</b><em>Genome, annotation, indexes</em></li>
+          <li><span class="n">2</span><b>Read clean-up</b><em>Repair, trim, filter</em></li>
+          <li><span class="n">3</span><b>Composition</b><em>Classify, deplete host</em></li>
+          <li><span class="n">4</span><b>Alignment</b><em>Map, measure depth</em></li>
+          <li><span class="n">5</span><b>Variant calling</b><em>Call, normalise, annotate</em></li>
+          <li><span class="n">6</span><b>Consensus</b><em>Depth-masked genome</em></li>
+          <li class="opt"><span class="n">7</span><b>Clade</b><em>Nextclade, when a dataset exists</em></li>
+        </ol>
+      </div>
+      <p class="flow-legend">Stage 8, reporting, gathers all of these across samples. The dashed stage runs only for references that carry a Nextclade dataset.</p>
+    </section>
+
+    <section id="reference">
+      <span class="kicker">Stage 1</span>
+      <h2>Reference build</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Before any sample is touched, each reference genome is prepared once and registered. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation — useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
+          <p>The build downloads the genome and gene annotation, builds the alignment index, the sequence dictionary and a protein-effect database, and records the virus's NCBI taxonomy ID. Optionally it fetches a Nextclade dataset for that virus. All of this is written into a single registry, <code>genome.json</code>, which accumulates references across projects.</p>
+          <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome — an error that would otherwise have silently removed that gene from every protein-effect call.</p>
+        </div>
+        <aside class="spec">
+          <h4>Build produces</h4>
+          <dl>
+            <dt>Alignment index</dt><dd>bowtie2-build</dd>
+            <dt>Sequence index &amp; dictionary</dt><dd>samtools faidx · dict</dd>
+            <dt>Effect database</dt><dd>SnpEff 5.1d</dd>
+            <dt>Recorded per reference</dt><dd>FASTA · annotation · taxid · Nextclade dataset · notes</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="preprocess">
+      <span class="kicker">Stage 2</span>
+      <h2>Read clean-up</h2>
+      <div class="stage">
+        <div class="steps" style="margin-top:0">
+          <div class="step">
+            <h3>Repair <span class="tool">BBTools reformat 38.87</span></h3>
+            <p>Raw read pairs are first made structurally valid: junk bases fixed, ambiguous IUPAC codes converted to <code>N</code>, broken pairs dropped, quality values clamped to a sane range.</p>
+            <p class="why">a single malformed record can crash every tool downstream; repairing first means failures later reflect biology, not file corruption.</p>
+          </div>
+          <div class="step">
+            <h3>Trim &amp; filter <span class="tool">fastp 0.23.4</span></h3>
+            <p>Adapters are detected from the read pairs themselves and removed, low-quality bases trimmed, and reads discarded when too short, too low in complexity, or with too many poor-quality bases.</p>
+            <p class="why">adapter sequence and low-complexity reads map spuriously and create false variants.</p>
+          </div>
+          <div class="step">
+            <h3>Read QC <span class="tool">FastQC 0.11.9</span></h3>
+            <p>Per-base quality, GC content and duplication profiles for every sample, collected into the project report.</p>
+          </div>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Minimum read length</dt><dd>30 bp</dd>
+            <dt>Base quality counted as good</dt><dd>Phred ≥ 20</dd>
+            <dt>Max share of poor bases per read</dt><dd>40 %</dd>
+            <dt>Low-complexity threshold</dt><dd>30 %</dd>
+            <dt>Adapter detection</dt><dd>automatic, paired-end overlap</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="composition">
+      <span class="kicker">Stage 3</span>
+      <h2>Composition &amp; host depletion</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Samples sequenced directly from patients or the environment are mostly <em>not</em> virus. Every read is classified taxonomically against the Kraken2 standard database, producing an interactive Krona chart and a composition table showing the viral, target-virus, human and bacterial fractions.</p>
+          <p>Human reads, the PhiX sequencing control and bacterial reads are then removed before alignment. This protects patient privacy in downstream files, shortens run time, and prevents host sequence from mapping to conserved regions of the viral genome.</p>
+          <p>In the validation run, the on-target fraction ranged from <strong>1.5 %</strong> to <strong>97.8 %</strong> across samples. This single number explains most differences in final coverage — which is why it sits in the summary table beside the genome results.</p>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Classifier</dt><dd>Kraken2 2.1.3, standard DB</dd>
+            <dt>Removed before alignment</dt><dd>taxid 9606 human<br>taxid 10847 PhiX<br>taxid 2 Bacteria</dd>
+            <dt>Reported per reference</dt><dd>pct_target, from that reference's own taxid</dd>
+            <dt>Visualisation</dt><dd>Krona 2.8.1</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="alignment">
+      <span class="kicker">Stage 4</span>
+      <h2>Alignment</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Cleaned reads are aligned to each reference with Bowtie2 in local mode, which tolerates the mismatches expected between a sample and a reference that may be years diverged. Unmapped, secondary and supplementary alignments are filtered out so each read contributes once.</p>
+          <p>Depth is measured along the whole genome in 200 bp windows and binned at 0, 10, 50 and 100× — the thresholds that decide whether a position can be trusted. Alignment metrics from samtools and Picard feed the project QC report.</p>
+          <p>A reference that attracts fewer than 1,000 mapped reads is flagged and its downstream steps skipped, so one poor reference in a multi-reference run does not stall the others. Duplicate reads are kept: at the extreme depths typical of viral sequencing, true independent reads share start positions, and removing them would discard real signal.</p>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Aligner</dt><dd>Bowtie2 2.5, --local</dd>
+            <dt>Max paired insert</dt><dd>1,500 bp</dd>
+            <dt>Minimum mapped reads</dt><dd>1,000</dd>
+            <dt>Depth bins</dt><dd>0 · 10 · 50 · 100×</dd>
+            <dt>Duplicates</dt><dd>retained</dd>
+            <dt>Metrics</dt><dd>samtools 1.21 · Picard 2.27.3 · mosdepth 0.3.3</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="variants">
+      <span class="kicker">Stage 5</span>
+      <h2>Variant calling &amp; annotation</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>A viral sample is rarely a single genome. Within one infection the population carries minority variants — early resistance mutations, co-infections, or the start of a lineage shift. viralrecon calls variants with FreeBayes in <strong>pooled-continuous</strong> mode, which models the sample as a mixture and reports alleles present in as little as <strong>2 %</strong> of reads rather than forcing a diploid-style genotype.</p>
+          <p>Multi-allelic sites are split into one record per allele and normalised so the same change is always written the same way. Each variant is annotated by SnpEff with its gene, its effect (synonymous, missense, frameshift…) and the protein change in standard notation, for example <code>p.Gln6249His</code>, also given in short form as <code>Q6249H</code>.</p>
+          <p>Two call sets are kept on purpose: <strong>raw</strong>, everything the caller saw, and <strong>filtered</strong>, calls passing quality and depth thresholds. Comparing the two tells a reviewer whether a mutation is genuinely absent from a sample or was present and filtered out.</p>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Caller</dt><dd>FreeBayes 1.3.10, pooled-continuous</dd>
+            <dt>Minimum alt frequency</dt><dd>2 %</dd>
+            <dt>Minimum alt reads</dt><dd>5</dd>
+            <dt>Base / mapping quality</dt><dd>≥ 20 / ≥ 20</dd>
+            <dt>Filtered set keeps</dt><dd>QUAL ≥ 20 and DP ≥ 10</dd>
+            <dt>Annotation</dt><dd>SnpEff / SnpSift 5.1d</dd>
+            <dt>Normalisation</dt><dd>bcftools 1.21 norm -m -any</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="consensus">
+      <span class="kicker">Stage 6</span>
+      <h2>Consensus genome</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Variants are applied to the reference to produce one consensus genome per sample and reference. The critical detail is what happens where the data is thin: every position below <strong>10×</strong> depth is written as <code>N</code>.</p>
+          <p>Without masking, a consensus silently inherits the reference base wherever no reads exist, and a poorly covered sample looks identical to the reference in exactly the regions nobody observed. Masked genomes are honest about what was measured, which matters when they are submitted to public databases or used to build phylogenies.</p>
+          <p>Each consensus is assessed with QUAST, and the fraction of the genome that reached the depth threshold is reported. Below <strong>80 %</strong> coverage the result carries a warning.</p>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Builder</dt><dd>bcftools consensus</dd>
+            <dt>Mask below</dt><dd>10× depth → N</dd>
+            <dt>Coverage warning below</dt><dd>80 % of genome</dd>
+            <dt>Assessment</dt><dd>QUAST 5.3.0</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="clade">
+      <span class="kicker">Stage 7</span>
+      <h2>Clade assignment</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Each consensus genome is placed on the published reference phylogeny with Nextclade, which returns its clade, a list of mutations relative to the dataset's reference, genome coverage, and an overall quality verdict of good, mediocre or bad.</p>
+          <p>Nextclade is <strong>dataset-driven</strong>, which is what makes this stage virus-agnostic. Datasets exist for SARS-CoV-2, mpox, RSV, influenza and many more. The dataset is attached to the reference when it is built, so a new virus needs a build step, not a change to the pipeline. A reference without a dataset is skipped rather than described with another virus's nomenclature.</p>
+          <p>Virus-specific tools that could only ever describe one or two pathogens were deliberately left out, so the pipeline behaves the same way for every virus it is given.</p>
+        </div>
+        <aside class="spec">
+          <h4>Key settings</h4>
+          <dl>
+            <dt>Tool</dt><dd>Nextclade 3.23.0</dd>
+            <dt>Runs when</dt><dd>the reference carries a dataset</dd>
+            <dt>Reports</dt><dd>clade · QC verdict · coverage · mutations</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="report">
+      <span class="kicker">Stage 8</span>
+      <h2>Reporting</h2>
+      <div class="stage">
+        <div class="prose">
+          <p>Results from every sample are merged per reference and assembled into a single <code>final_report/</code> directory designed to be read top-down.</p>
+          <p><strong>One summary table</strong> gives one row per sample and reference: read input, composition, mapping, depth, genome coverage, variant count, clade, and a verdict column that reads <code>pass</code> or names exactly which check failed.</p>
+          <p><strong>Variant matrices</strong> show one row per mutation and one column per sample with its frequency, so the question "is this mutation fixed everywhere, or a minority in three samples?" is answered by reading across a line.</p>
+          <p><strong>Figures and a self-contained IGV report</strong> let a reviewer see the read evidence behind each variant in a web browser, with no genome browser installed. Input alignments are downsampled to 200× for this report so it stays around 40 MB per reference instead of gigabytes.</p>
+          <p><strong>A MultiQC report</strong> collects quality metrics from every tool, stage and sample into one page.</p>
+        </div>
+        <aside class="spec">
+          <h4>Report contents</h4>
+          <dl>
+            <dt>Summary</dt><dd>run_summary.tsv, 19 columns</dd>
+            <dt>Variants</dt><dd>raw &amp; filtered matrices · long table · VCF</dd>
+            <dt>Figures</dt><dd>genome overview · variant heatmap · coverage · composition</dd>
+            <dt>Evidence</dt><dd>igv-reports 1.16.0, reads at 200×</dd>
+            <dt>QC</dt><dd>MultiQC 1.33</dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="features">
+      <span class="kicker">Value</span>
+      <h2>Key features</h2>
+      <div class="features">
+        <div class="feature"><h3>Works for any virus</h3><p>No step is written for one pathogen. Everything that differs between viruses — genome, annotation, taxonomy ID, Nextclade dataset — is recorded on the reference, so adding a virus is a build command.</p></div>
+        <div class="feature"><h3>Reproducible by construction</h3><p>Every tool runs from a version-pinned Singularity image, never a cluster module that can change underneath a project. Each run directory keeps the exact code and parameters that produced it.</p></div>
+        <div class="feature"><h3>Minority variants, not just consensus</h3><p>Population-aware calling down to 2% allele frequency surfaces co-infections and emerging mutations that a consensus-only analysis hides by construction.</p></div>
+        <div class="feature"><h3>Several references in one run</h3><p>Samples are compared against multiple references at once — for example a historical type strain and a current circulating isolate — with results kept cleanly separate.</p></div>
+        <div class="feature"><h3>Honest genomes</h3><p>Low-evidence positions are masked rather than filled from the reference, so a genome never claims sequence nobody measured.</p></div>
+        <div class="feature"><h3>A verdict, not just numbers</h3><p>Each result carries a pass or a named warning — low coverage, too few mapped reads, a failed clade call — so problems are found by reading one column.</p></div>
+        <div class="feature"><h3>Failures stay contained</h3><p>An annotation that fails for one sample is recorded and reported without discarding the run. The error log stays empty when nothing failed, and lists exactly what did when something does.</p></div>
+        <div class="feature"><h3>Runs on two clusters</h3><p>The same code runs on NIH Biowulf and NIAID BigSky. Paths, container locations and queue names are resolved per platform from configuration.</p></div>
+      </div>
+    </section>
+
+    <section id="validation">
+      <span class="kicker">Value</span>
+      <h2>Validation</h2>
+      <div class="prose">
+        <p>The pipeline was run end to end on the NIAID_1409 project: eight SARS-CoV-2 samples against two references — Wuhan-Hu-1 (<code>NC_045512.2</code>) and a 2023 Omicron isolate (<code>PP115423.1</code>). All 353 jobs completed and all 16 results passed QC. Separately, its variant calls reproduced all seven variants reported by the existing RML analysis of the same data.</p>
+      </div>
+
+      <div class="tablewrap">
+        <table class="split">
+          <thead>
+            <tr>
+              <th rowspan="2">Sample</th>
+              <th rowspan="2" class="num">On-target reads</th>
+              <th rowspan="2" class="num">Mean depth</th>
+              <th colspan="2" class="grp">vs. Wuhan-Hu-1 dataset</th>
+              <th colspan="2" class="grp">vs. BA.2.86 dataset</th>
+            </tr>
+            <tr><th class="edge">Clade</th><th>QC</th><th class="edge">Clade</th><th>QC</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="sample">SARS399_M_SA_S3</td><td class="num">97.8 %</td><td class="num">324,155×</td><td class="edge">19B</td><td><span class="pill good">good</span></td><td class="edge">outgroup</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">SARS399_Q_SA_S4</td><td class="num">97.4 %</td><td class="num">346,767×</td><td class="edge">19B</td><td><span class="pill good">good</span></td><td class="edge">outgroup</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06658_01_S1</td><td class="num">2.8 %</td><td class="num">121×</td><td class="edge">24A</td><td><span class="pill warn">mediocre</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06659_01_S2</td><td class="num">9.5 %</td><td class="num">184×</td><td class="edge">24A</td><td><span class="pill warn">bad</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06660_01_S3</td><td class="num">17.9 %</td><td class="num">409×</td><td class="edge">24A</td><td><span class="pill warn">mediocre</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06661_01_S4</td><td class="num">1.5 %</td><td class="num">49×</td><td class="edge">24A</td><td><span class="pill warn">mediocre</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06662_01_S5</td><td class="num">5.1 %</td><td class="num">96×</td><td class="edge">24A</td><td><span class="pill warn">mediocre</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+            <tr><td class="sample">LIB_06663_01_S6</td><td class="num">17.4 %</td><td class="num">324×</td><td class="edge">24A</td><td><span class="pill warn">bad</span></td><td class="edge">24A</td><td><span class="pill good">good</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><strong>What the table shows.</strong> Genome coverage was above 99.4 % for every sample, even at 1.5 % on-target reads. The clade is the same whichever dataset is used, because Nextclade places each genome on its own reference tree.</p>
+        <p>The quality verdict depends on the dataset. The six recent 24A samples score <em>mediocre</em> or <em>bad</em> against the Wuhan-rooted dataset but <em>good</em> against one rooted at BA.2.86, which is much closer to them. The older 19B samples fall outside the BA.2.86 tree. The practical rule: choose the dataset closest to what was sequenced before reading its QC verdict.</p>
+      </div>
+    </section>
+
+    <section id="deliverables">
+      <span class="kicker">Value</span>
+      <h2>What you receive</h2>
+      <div class="prose">
+        <p>Every run ends in the same layout, ordered by what a reader needs first.</p>
+      </div>
+<div class="tree"><span class="h">final_report/</span>
+├── run_summary.tsv                 <span class="c">one row per sample × reference — start here</span>
+├── multiqc/project_multiqc_report.html
+└── <span class="h">&lt;reference&gt;/</span>
+    ├── figures/                    <span class="c">genome overview, variant heatmap, coverage, composition</span>
+    ├── igv_report.&lt;reference&gt;.html <span class="c">read evidence for each variant, opens in a browser</span>
+    ├── consensus/                  <span class="c">depth-masked genomes, per sample and combined</span>
+    ├── variants/                   <span class="c">annotated VCFs, raw and filtered variant matrices</span>
+    ├── lineage/                    <span class="c">Nextclade clade, QC verdict and coverage</span>
+    └── qc/                         <span class="c">Krona composition, depth summaries, mapping rates</span></div>
+    </section>
+
+    <section id="scope">
+      <span class="kicker">Value</span>
+      <h2>Scope</h2>
+      <div class="scope">
+        <div>
+          <h3>Designed for</h3>
+          <ul>
+            <li>Illumina short reads, paired-end or single-end, detected automatically</li>
+            <li>Metagenomic or enriched samples from clinical and environmental sources</li>
+            <li>Any virus with a reference genome and annotation</li>
+            <li>Projects comparing samples against one or several references</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Not in scope today</h3>
+          <ul>
+            <li>Long-read platforms such as Oxford Nanopore or PacBio</li>
+            <li>De novo assembly of unknown viruses without a reference</li>
+            <li>Amplicon primer trimming for tiled-PCR protocols</li>
+            <li>Clade assignment for viruses that have no Nextclade dataset</li>
+          </ul>
+        </div>
+      </div>
+      <footer>
+        <span>viralrecon 0.1.0 · Snakemake 7.30 · Singularity</span>
+        <span>github.com/AmirShamsNIH/viralrecon</span>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  var el=document.getElementById('bases'); if(!el) return;
+  var seq='ATTAAAGGTTTATACCTTCCCAGGTAACAAACCAACCAACTTTCGATCTCTTGTAGATCTGTTCTCTAAACGAACTTTAAAATCTGTGTGGCTGTCACTCGGCTGCATGCTTAGTGCACTCACGCAGTATAATTAATAACTAATTACTGTCGTTGACAGGACACGAGTAACTCGTCTATCTTCTGCAGGCTGCTTACGGTTTCGTCCGTGTTGCAGCCGATCATCAGC';
+  var col={A:'var(--A)',C:'var(--C)',G:'var(--G)',T:'var(--T)'};
+  var html='';
+  for(var i=0;i<seq.length;i++){ html+='<i style="background:'+col[seq[i]]+'"></i>'; }
+  el.innerHTML=html;
+})();
+</script>
