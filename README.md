@@ -29,13 +29,13 @@
 
 Sequencing a virus directly from a clinical or environmental sample answers three
 different questions at once: **what is in the sample**, **what does its genome look
-like**, and **which known lineage is it**. Answering them separately, with ad-hoc
+like**, and **which known clade is it**. Answering them separately, with ad-hoc
 scripts per project, is where reproducibility is usually lost.
 
 **viralrecon** answers all three in one pass. It takes raw Illumina FASTQ files and a
 set of reference accessions, and produces per-sample consensus genomes, annotated
 variant calls (including sub-consensus, intra-host variants), contamination profiles,
-and lineage assignments — with a single directory a user is meant to open first.
+and clade assignments — with a single directory a user is meant to open first.
 
 Two design commitments make its results reproducible:
 
@@ -43,12 +43,14 @@ Two design commitments make its results reproducible:
   appears anywhere in the workflow, or in the reference-building CLI. A cluster module
   can be upgraded or removed underneath a pipeline and its version is not recorded in
   the run directory; a pinned `.sif` path is. This matters most for tools that bundle a
-  database or dataset — nextclade — where a floating version silently changes
-  lineage assignments.
-- **The pipeline is virus-agnostic.** Nothing outside the optional lineage stage assumes
-  SARS-CoV-2. Targets are selected by accession, never by name, and a run may carry
-  several unrelated viruses at once; every post-alignment file is namespaced
-  `{sample}.{target}.*` so two targets cannot mix.
+  dataset, like Nextclade, where a floating version silently changes clade
+  assignments.
+- **The pipeline is virus-agnostic.** No rule assumes a particular virus. Everything that
+  differs between viruses — the FASTA, the annotation, the taxid, the Nextclade dataset —
+  is data recorded on the reference, so adding a virus is a `viralrecon build`, not a code
+  change. Targets are selected by accession, never by name, and a run may carry several
+  unrelated viruses at once; every post-alignment file is namespaced `{sample}.{target}.*`
+  so two targets cannot mix.
 
 Orchestration is [Snakemake][1], which handles the job DAG, SLURM submission, restarts,
 and container invocation.
@@ -59,7 +61,7 @@ and container invocation.
 
 ### 2.1 Stages
 
-Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optional.
+Stages run in the order below. `lineage` is optional.
 
 | # | Stage | Purpose | Key tools |
 |---|-------|---------|-----------|
@@ -68,7 +70,7 @@ Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optiona
 | 3 | **alignment** | Map to each target, QC the mapping | [Bowtie2][6] · [samtools][7] · [Picard][8] · [mosdepth][9] |
 | 4 | **variant_calling** | Call, normalise, annotate, build consensus | [FreeBayes][10] · [bcftools][7] · [SnpEff/SnpSift][11] · [GATK4][12] |
 | 5 | **report** | Aggregate across samples, assemble `final_report/` | bcftools · GATK4 · [QUAST][13] · [MultiQC][14] |
-| — | **lineage** *(opt.)* | Clade assignment | [Nextclade][16] |
+| — | **lineage** *(opt.)* | Clade assignment | [Nextclade][15] |
 
 #### Quality control and decontamination
 
@@ -119,21 +121,22 @@ Stages run in the order below. `lineage`, `amplicon`, and `assembly` are optiona
 
 #### Lineage
 
-Nextclade is the only lineage caller, and it is gated by what it can actually describe:
+Clade assignment is done by **[Nextclade][15]**, and it works for any virus that has a
+Nextclade dataset — `sars-cov-2`, `mpox`, `rsv_a`, `flu_h1n1pdm_ha` and many
+more (`nextclade dataset list`).
 
-- **Nextclade** — dataset-driven, and the dataset belongs to the reference. Fetch it at
-  build time with `--nextclade-dataset`; the path is recorded in `genome.json` and
-  nextclade runs on any target that has one. A target without a dataset is skipped rather
-  than described against another virus's dataset, which would return confident nonsense
-  instead of failing.
-
-Pangolin and Freyja were removed rather than gated. Pango nomenclature exists for
-SARS-CoV-2 alone, and Freyja demixes only the pathogens it carries curated barcodes for,
-each keyed to that pathogen's own reference coordinates. Both could describe a fixed set
-of viruses and nothing else, and a pipeline for any virus should not carry a stage most
-references cannot use: it complicates the report schema, the gates and the documentation
-for everyone who will never see output from it. Nextclade generalises because a dataset
-can exist for any virus, and the dataset travels with the reference.
+- **The dataset belongs to the reference, not the run.** Fetch it at build time with
+  `--nextclade-dataset`; it lands in `<reference>/nextclade/` and its path is recorded in
+  `genome.json`. Nextclade runs on every target that carries one.
+- **A target without a dataset is skipped, never guessed.** Describing a sample against
+  another virus's dataset would return a confident, wrong clade instead of failing.
+- **Nextclade aligns to the dataset's own reference.** The clade does not depend on which
+  reference the reads were mapped to, so two targets for the same virus should agree.
+- **Pick the dataset that matches what was sequenced.** QC is scored against the
+  dataset's reference tree. In validation, six JN.1-lineage samples (clade 24A) scored
+  `mediocre`/`bad` against the Wuhan-rooted `sars-cov-2` dataset and `good` against the
+  BA.2.86-rooted one — same clade, same data. Ancestral samples go the other way: clade
+  19B reads as `outgroup` against a BA.2.86-rooted tree.
 
 ### 2.2 Dependencies
 
@@ -145,7 +148,7 @@ can exist for any virus, and the dataset travels with the reference.
 
 Input is paired or single-end Illumina FASTQ; the layout is detected from whether any
 R2 file is present, not configured. Single-end has been verified against the same
-samples run paired: identical lineage calls and fixed markers, and sub-consensus
+samples run paired: identical clade calls and fixed markers, and sub-consensus
 frequencies within about a point, at proportionally lower depth.
 
 Nothing else is needed locally — every tool is containerised.
@@ -457,7 +460,7 @@ final_report/
     ├── figures/                     ← LOOK HERE FIRST if you want pictures
     ├── consensus/                   ← the genomes
     ├── variants/                    ← what differs from the reference
-    ├── lineage/                     ← what strain it is
+    ├── lineage/                     ← what clade it is (Nextclade)
     ├── qc/                          ← whether to believe the above
     ├── igv_report.{target}.html     ← interactive, no IGV needed
     └── igv_session.{target}.xml     ← for people who do have IGV
@@ -468,7 +471,7 @@ Outputs fall into five categories. Read them in this order.
 ### 4.1 Start here — the one-page answer
 
 **`run_summary.tsv`** — one row per sample × target, and the only file most runs need.
-Twenty-three columns grouped as:
+Nineteen columns grouped as:
 
 | group | columns | reads as |
 |---|---|---|
@@ -551,18 +554,20 @@ indels and frameshifts, which defer to `HGVS_P`.
 Raw versus filtered is not a formality: the SnpSift filter typically removes most calls,
 and the pair is what lets you tell a genuinely absent variant from a filtered one.
 
-### 4.5 What strain it is — `{target}/lineage/`
+### 4.5 What clade it is — `{target}/lineage/`
 
 Present only for targets whose reference carries a Nextclade dataset (see §4.7).
 
-| file | caller | gives |
-|---|---|---|
-| `lineage_summary.tsv` | Nextclade | **per-sample table, read this one** |
-| `{sample}.{target}.nextclade.tsv` | Nextclade | clade, QC, mutation list |
+| file | gives |
+|---|---|
+| `lineage_summary.tsv` | **clade, QC and coverage per sample — read this one** |
+| `{sample}.{target}.nextclade.tsv` | full Nextclade output: clade, QC breakdown, mutation list |
 
-`nextclade_qc` is the column to read beside the clade: a `bad` or `mediocre` call on a
-well-covered sample usually means a low-quality or genuinely mixed sample rather than a
-pipeline problem.
+Read `nextclade_qc` beside the clade. On a well-covered sample, `mediocre` or `bad` most
+often means the dataset does not match what was sequenced rather than a problem with the
+sample — check the clade against a dataset rooted closer to it before distrusting the
+data (see *Lineage* in §2.1). `nextclade_coverage` is the fraction of the dataset's
+reference the consensus covers.
 
 ### 4.6 Whether to believe it — `{target}/qc/` and `multiqc/`
 
@@ -637,7 +642,7 @@ re-running later cannot silently pick up a changed repo.
 <sup>12.</sup> McKenna, A. *et al.* *The Genome Analysis Toolkit.* Genome Research (2010).
 <sup>13.</sup> Gurevich, A. *et al.* *QUAST: quality assessment tool for genome assemblies.* Bioinformatics (2013).
 <sup>14.</sup> Ewels, P. *et al.* *MultiQC: summarize analysis results for multiple tools and samples.* Bioinformatics (2016).
-<sup>16.</sup> Aksamentov, I. *et al.* *Nextclade: clade assignment, mutation calling and quality control.* JOSS (2021).
+<sup>15.</sup> Aksamentov, I. *et al.* *Nextclade: clade assignment, mutation calling and quality control.* JOSS (2021).
 
 [1]: https://snakemake.readthedocs.io
 [2]: https://github.com/OpenGene/fastp
@@ -653,7 +658,7 @@ re-running later cannot silently pick up a changed repo.
 [12]: https://gatk.broadinstitute.org/
 [13]: https://quast.sourceforge.net/
 [14]: https://multiqc.info/
-[16]: https://clades.nextstrain.org/
+[15]: https://clades.nextstrain.org/
 
 ---
 
