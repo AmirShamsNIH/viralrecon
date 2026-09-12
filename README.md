@@ -183,7 +183,7 @@ different images is split into one rule per tool. When adding a rule, give it a
 ### 2.4 Installation
 
 ```bash
-git clone https://github.com/OpenOmics/viralrecon.git
+git clone https://github.com/AmirShamsNIH/viralrecon.git
 cd viralrecon
 ./viralrecon --version
 ```
@@ -378,7 +378,8 @@ dataset lands in `<reference>/nextclade/` and its path is recorded in `genome.js
 ```
 
 Names come from `nextclade dataset list` — `sars-cov-2`, `mpox`, `rsv_a`,
-`flu_h1n1pdm_ha` and others. This step needs the proxy set.
+`flu_h1n1pdm_ha` and others. On Biowulf this step needs the proxy set (§2.5); BigSky
+reaches the internet directly.
 
 Record curated knowledge about a reference — the kind nothing can be derived from the
 files themselves. The note is stored in `genome.json`, echoed whenever a run selects that
@@ -421,8 +422,8 @@ directory — `config/` is copied once and does not otherwise refresh:
 ./viralrecon run -i ... -o ... --genome ... --overwrite-pipeline-template
 ```
 
-Other subcommands: `unlock` (release a stale Snakemake lock), `cache` (pre-pull images),
-`install` (fetch reference data).
+Pass `--platform BIGSKY` to both `build` and `run` on BigSky; Biowulf is the default.
+`unlock` releases a stale Snakemake lock on an output directory.
 
 ### 3.3 Configuration
 
@@ -430,7 +431,7 @@ Other subcommands: `unlock` (release a stale Snakemake lock), `cache` (pre-pull 
 |---|---|
 | `config/config.json` | Pipeline options and every tool parameter |
 | `config/cluster.json` | Per-rule SLURM resources |
-| `config/genome.json` | Reference paths, written by `viralrecon build` |
+| `config/genome.json` | Template only — the real registry is `<build --output>/genome.json` |
 | `config/containers.json` | Singularity image paths |
 
 Frequently adjusted keys:
@@ -607,11 +608,14 @@ failure.
 | `RUNNING` / `COMPLETED` / `FAILED` | state as a sentinel file, so a check never parses a log |
 | `job_information_<ts>.tsv` | requested vs peak CPU and memory per job (`jobby`) — the basis for tuning `cluster.json` |
 | `failed_jobs_<ts>.tsv` | just the failures from the above |
-| `logfiles/` | per-rule logs; `master.err` is the Snakemake driver |
+| `logfiles/` | per-rule logs; `master.log` is the full Snakemake driver record, `master.err` holds failures only and stays empty on success |
 | `workflow/`, `config/` | the exact code and parameters that produced this run |
 
-`workflow/` and `config/` are copied in deliberately: a run is self-describing, and
-re-running later cannot silently pick up a changed repo.
+Both are copied in deliberately, so a run is self-describing — but they refresh
+differently. `workflow/` is re-copied from the repo on every launch, so code fixes reach an
+existing run directory; a changed helper script reruns the rules that use it. `config/` is
+copied once so per-run edits survive, which means a new config key does **not** reach an
+existing run directory until you pass `--overwrite-pipeline-template`.
 
 ---
 
