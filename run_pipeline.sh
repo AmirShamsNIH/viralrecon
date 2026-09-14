@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ── Edit these ────────────────────────────────────────────────────────────────
-VIRALRECON=/data/RTB_GRS/internal/Amir/viralrecon
+VIRALRECON=/data/RTB_GRS/internal/pipeline/viralrecon
 INPUT_DIR=/data/shamsaddinisha/Test_Space/GRS_virmap/virmap_fastq
 OUTPUT_DIR=/data/shamsaddinisha/Test_Space/GRS_virmap/viralrecon_out
 GENOME_JSON=/data/shamsaddinisha/Test_Space/GRS_virmap/target_reference/data/genome.json
