@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 100" width="1050" height="100" role="img" aria-labelledby="title">
-  <title id="title">viralrecon workflow: 1 Reference build, 2 Read clean-up, 3 Composition, 4 Alignment, 5 Variant calling, 6 Consensus, 7 Clade</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1052 170" width="1052" height="170" role="img" aria-labelledby="title">
+  <title id="title">viralrecon workflow: 1 Reference build, 2 Read clean-up, 3 Composition, 4 Alignment, 5 Variant calling, 6 Consensus, 7 Clade, 8 Reporting</title>
   <style>
     .cell { fill: #FFFFFF; stroke: #D3DDD9; stroke-width: 1; }
     .rule { stroke: #D3DDD9; stroke-width: 1; }
@@ -17,54 +17,53 @@
     }
   </style>
 
-  <rect class="cell" x="0.5" y="0.5" width="1049" height="99"/>
-  <line class="rule" x1="150" y1="3" x2="150" y2="99.5"/>
-  <line class="rule" x1="300" y1="3" x2="300" y2="99.5"/>
-  <line class="rule" x1="450" y1="3" x2="450" y2="99.5"/>
-  <line class="rule" x1="600" y1="3" x2="600" y2="99.5"/>
-  <line class="rule" x1="750" y1="3" x2="750" y2="99.5"/>
-  <line class="rule" x1="900" y1="3" x2="900" y2="99.5"/>
+  <rect class="cell" x="0.5" y="0.5" width="1051" height="77"/>
+  <line class="rule" x1="263" y1="3" x2="263" y2="77.5"/>
+  <line class="rule" x1="526" y1="3" x2="526" y2="77.5"/>
+  <line class="rule" x1="789" y1="3" x2="789" y2="77.5"/>
+  <line class="bar" x1="0" y1="1.5" x2="263" y2="1.5"/>
+  <line class="bar" x1="263" y1="1.5" x2="526" y2="1.5"/>
+  <line class="bar" x1="526" y1="1.5" x2="789" y2="1.5"/>
+  <line class="bar" x1="789" y1="1.5" x2="1052" y2="1.5"/>
 
-  <line class="bar" x1="0" y1="1.5" x2="150" y2="1.5"/>
-  <line class="bar" x1="150" y1="1.5" x2="300" y2="1.5"/>
-  <line class="bar" x1="300" y1="1.5" x2="450" y2="1.5"/>
-  <line class="bar" x1="450" y1="1.5" x2="600" y2="1.5"/>
-  <line class="bar" x1="600" y1="1.5" x2="750" y2="1.5"/>
-  <line class="bar" x1="750" y1="1.5" x2="900" y2="1.5"/>
-  <line class="bar opt" x1="900" y1="1.5" x2="1050" y2="1.5"/>
+  <text class="n" x="16" y="23">1</text>
+  <text class="t" x="16" y="44">Reference build</text>
+  <text class="s" x="16" y="64">Genome, annotation, indexes</text>
 
-  <text class="n" x="14" y="24">1</text>
-  <text class="t" x="14" y="45">Reference build</text>
-  <text class="s" x="14" y="66">Genome, annotation,</text>
-  <text class="s" x="14" y="82">indexes</text>
+  <text class="n" x="279" y="23">2</text>
+  <text class="t" x="279" y="44">Read clean-up</text>
+  <text class="s" x="279" y="64">Repair, trim, filter</text>
 
-  <text class="n" x="164" y="24">2</text>
-  <text class="t" x="164" y="45">Read clean-up</text>
-  <text class="s" x="164" y="66">Repair, trim,</text>
-  <text class="s" x="164" y="82">filter</text>
+  <text class="n" x="542" y="23">3</text>
+  <text class="t" x="542" y="44">Composition</text>
+  <text class="s" x="542" y="64">Classify, deplete host</text>
 
-  <text class="n" x="314" y="24">3</text>
-  <text class="t" x="314" y="45">Composition</text>
-  <text class="s" x="314" y="66">Classify,</text>
-  <text class="s" x="314" y="82">deplete host</text>
+  <text class="n" x="805" y="23">4</text>
+  <text class="t" x="805" y="44">Alignment</text>
+  <text class="s" x="805" y="64">Map, measure depth</text>
 
-  <text class="n" x="464" y="24">4</text>
-  <text class="t" x="464" y="45">Alignment</text>
-  <text class="s" x="464" y="66">Map, measure</text>
-  <text class="s" x="464" y="82">depth</text>
+  <rect class="cell" x="0.5" y="92.5" width="1051" height="77"/>
+  <line class="rule" x1="263" y1="95" x2="263" y2="169.5"/>
+  <line class="rule" x1="526" y1="95" x2="526" y2="169.5"/>
+  <line class="rule" x1="789" y1="95" x2="789" y2="169.5"/>
+  <line class="bar" x1="0" y1="93.5" x2="263" y2="93.5"/>
+  <line class="bar" x1="263" y1="93.5" x2="526" y2="93.5"/>
+  <line class="bar opt" x1="526" y1="93.5" x2="789" y2="93.5"/>
+  <line class="bar" x1="789" y1="93.5" x2="1052" y2="93.5"/>
 
-  <text class="n" x="614" y="24">5</text>
-  <text class="t" x="614" y="45">Variant calling</text>
-  <text class="s" x="614" y="66">Call, normalise,</text>
-  <text class="s" x="614" y="82">annotate</text>
+  <text class="n" x="16" y="115">5</text>
+  <text class="t" x="16" y="136">Variant calling</text>
+  <text class="s" x="16" y="156">Call, normalise, annotate</text>
 
-  <text class="n" x="764" y="24">6</text>
-  <text class="t" x="764" y="45">Consensus</text>
-  <text class="s" x="764" y="66">Depth-masked</text>
-  <text class="s" x="764" y="82">genome</text>
+  <text class="n" x="279" y="115">6</text>
+  <text class="t" x="279" y="136">Consensus</text>
+  <text class="s" x="279" y="156">Depth-masked genome</text>
 
-  <text class="n" x="914" y="24">7</text>
-  <text class="t" x="914" y="45">Clade</text>
-  <text class="s" x="914" y="66">Nextclade, when a</text>
-  <text class="s" x="914" y="82">dataset exists</text>
+  <text class="n" x="542" y="115">7</text>
+  <text class="t" x="542" y="136">Clade</text>
+  <text class="s" x="542" y="156">Nextclade, when a dataset exists</text>
+
+  <text class="n" x="805" y="115">8</text>
+  <text class="t" x="805" y="136">Reporting</text>
+  <text class="s" x="805" y="156">Summary, figures, final report</text>
 </svg>

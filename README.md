@@ -63,10 +63,9 @@ Every sample is processed against every selected reference. A run can carry seve
 unrelated viruses at once; each result is namespaced `{sample}.{target}` so they cannot mix.
 Steps run in this order, scheduled as cluster jobs on SLURM by Snakemake.
 
-<p align="center"><img src="docs/workflow.svg" width="100%" alt="viralrecon workflow: 1 Reference build, 2 Read clean-up, 3 Composition, 4 Alignment, 5 Variant calling, 6 Consensus, 7 Clade"></p>
+<p align="center"><img src="docs/workflow.svg" width="100%" alt="viralrecon workflow: 1 Reference build, 2 Read clean-up, 3 Composition, 4 Alignment, 5 Variant calling, 6 Consensus, 7 Clade, 8 Reporting"></p>
 
-Stage 8, reporting, gathers all of these across samples. The dashed stage runs only for
-references that carry a Nextclade dataset.
+The dashed step runs only for references that carry a Nextclade dataset.
 
 ### 2.1 Stages
 
