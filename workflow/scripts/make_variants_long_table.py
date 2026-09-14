@@ -1,17 +1,6 @@
 #!/usr/bin/env python3
-"""
-make_variants_long_table.py
-───────────────────────────
-Reshape a GATK VariantsToTable output (wide, multi-sample) into a long-format
-TSV with one row per sample × variant.  This makes per-sample filtering and
-visualisation in downstream tools much simpler.
-
-GATK VariantsToTable produces columns like:
-    CHROM  POS  REF  ALT  QUAL  DP  SAMPLE1.AD  SAMPLE1.DP  SAMPLE2.AD …
-
-This script pivots those into:
-    TARGET  SAMPLE  CHROM  POS  REF  ALT  QUAL  TOTAL_DP  AD  SAMPLE_DP  …
-"""
+"""Reshape a wide GATK VariantsToTable output into a long TSV with one row per
+sample x variant."""
 
 import argparse
 import csv

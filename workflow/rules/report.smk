@@ -1,30 +1,5 @@
-# ############################################################################
-# report.smk — cross-sample aggregation and final reports
-#
-# All aggregate outputs write directly to final_report/{target}/ so there is
-# no intermediate report/ staging directory.
-#
-# Rules
-# -----
-#   bcftools_merge        – merge per-sample VCFs → SnpEff → GATK table → TSV
-#   quast_consensus       – QUAST quality assessment of consensus FASTAs
-#   make_variants_long_table – reshape variants table to long format
-#   multiqc_report        – project-wide MultiQC (all stages, all samples)
-#   make_igv_session      – IGV XML session (BAMs + VCFs + consensus FASTAs)
-#   final_report          – copy per-sample stage MultiQC reports; write .done
-#
-# Every rule that runs a helper script declares that script as an input rather
-# than passing its path through params. Snakemake reruns a rule when an input is
-# newer than the output, so editing a script now rebuilds what it produces --
-# previously a fixed script left run_summary.tsv stale through relaunch after
-# relaunch, because a changed params value is not a rerun trigger for a script
-# invoked by path.
-#
-# This does not rebuild everything on every launch, even though `viralrecon run`
-# re-copies workflow/ into the run directory each time: copytree copies with
-# copy2, which preserves mtimes, and git only touches files whose content it
-# changes. So a script's mtime tracks when it was last actually edited.
-# ############################################################################
+# report.smk: cross-sample aggregation written straight into final_report/{target}/.
+# Helper scripts are declared as inputs, so editing one reruns the rule that uses it.
 
 from os.path import join
 from scripts.common import allocated
@@ -34,22 +9,10 @@ _FR = join(WORKPATH, "final_report")   # shorthand used throughout
 
 # ── bcftools_merge / snpeff_aggregate / bgzip_aggregate /
 #    gatk_aggregate_table / collect_mapping_summary ──────────────────────────
-#
-# One rule until the container migration. It chained bcftools, SnpEff, GATK and
-# a Python script, and a rule may declare only one container.
 
 rule bcftools_merge:
-    """
-    Merge the per-sample annotated VCFs for a target into one aggregate VCF.
-
-    FORMAT/GL and FORMAT/PL are stripped. FreeBayes emits GL for every sample,
-    and a merge leaves it as "." for samples that lacked the site; htsjdk
-    (GATK, SnpEff) aborts on such a partially-missing GL field. Nothing
-    downstream consumes GL/PL, so dropping them is lossless here.
-
-    @Input:  per-sample annotated VCFs
-    @Output: aggregate VCF + index
-    """
+    """Merge the per-sample annotated VCFs for a target, stripping FORMAT/GL and PL,
+    which htsjdk cannot parse once the merge leaves them partially missing."""
     input:
         vcfs = expand(
             join(WORKPATH, "{sample}", "variant_calling", "{{target}}",
@@ -97,14 +60,7 @@ tabix -p vcf "{output.agg_vcf}" >> "{log}" 2>&1
 
 
 rule snpeff_aggregate:
-    """
-    Re-annotate the merged VCF so the aggregate carries its own effects.
-
-    Emits plain VCF; the SnpEff image has no htslib (see bgzip_aggregate).
-
-    @Input:  aggregate VCF
-    @Output: annotated plain VCF (temp) + SnpEff summary
-    """
+    """Re-annotate the merged VCF with SnpEff, emitting plain VCF for bgzip_aggregate."""
     input:
         vcf = rules.bcftools_merge.output.agg_vcf,
         snpeff_cfg = join(WORKPATH, "ref_db", "{target}", "snpEff.config"),
@@ -137,12 +93,7 @@ touch "{output.snpeff_sum}" "{output.snpeff_genes}"
 
 
 rule bgzip_aggregate:
-    """
-    Compress and index the annotated aggregate VCF.
-
-    @Input:  annotated plain VCF
-    @Output: bgzipped annotated VCF + index
-    """
+    """Compress and index the annotated aggregate VCF."""
     input:
         vcf = rules.snpeff_aggregate.output.vcf,
     output:
@@ -168,15 +119,8 @@ tabix -p vcf "{output.ann_vcf}" >> "{log}" 2>&1
 
 
 rule gatk_aggregate_table:
-    """
-    Flatten the aggregate annotated VCF into a table.
-
-    Note the DP column here is the cross-sample sum, not a per-sample depth;
-    the per-sample values are in the .DP columns.
-
-    @Input:  annotated aggregate VCF
-    @Output: aggregate variants table
-    """
+    """Flatten the aggregate annotated VCF into a table. DP is the cross-sample sum;
+    per-sample depth is in the .DP columns."""
     input:
         vcf = rules.bgzip_aggregate.output.ann_vcf,
         tbi = rules.bgzip_aggregate.output.ann_tbi,
@@ -205,15 +149,8 @@ gatk VariantsToTable {params.extra} \
 
 
 rule collect_mapping_summary:
-    """
-    Per-sample mapping summary for a target.
-
-    Reads the pre-filter flagstat: after unmapped records are dropped, a
-    post-filter flagstat always reads ~100% mapped.
-
-    @Input:  per-sample pre-filter flagstats
-    @Output: mapping summary TSV
-    """
+    """Per-sample mapping summary for a target, from the pre-filter flagstat (the
+    filtered BAM always reads about 100% mapped)."""
     input:
         flagstats = expand(
             join(WORKPATH, "{sample}", "alignment", "{{target}}",
@@ -248,13 +185,7 @@ python3 "{input.script}" \
 # ── quast_consensus ───────────────────────────────────────────────────────────
 
 rule quast_consensus:
-    """
-    QUAST quality assessment of per-sample consensus FASTAs against the
-    reference for a given target.
-
-    @Input:  per-sample consensus FASTAs from bcftools_consensus + ref FASTA
-    @Output: QUAST HTML + TSV, written directly into final_report/{target}/quast/
-    """
+    """QUAST assessment of per-sample consensus FASTAs against the target reference."""
     input:
         fastas = expand(
             join(WORKPATH, "{sample}", "variant_calling", "{{target}}",
@@ -282,10 +213,8 @@ rule quast_consensus:
     shell: """
 set -euo pipefail
 mkdir -p "{params.outdir}"
-# A target a library barely maps to yields consensus sequences that are
-# entirely N after depth masking, and QUAST exits non-zero on those. That is
-# a legitimate outcome for one reference in a multi-target run, not a pipeline
-# failure, so it is reported and stubbed rather than propagated.
+# Consensus sequences that are all N after masking make QUAST exit non-zero, a
+# legitimate outcome for a weak target, so it is logged and stubbed.
 INFORMATIVE=0
 for fa in {input.fastas}; do
     if grep -v "^>" "$fa" | tr -d "\n" | tr -d "Nn" | grep -q .; then
@@ -310,13 +239,7 @@ fi
 # ── make_variants_long_table ──────────────────────────────────────────────────
 
 rule make_variants_long_table:
-    """
-    Reshape the aggregate per-target variants table into a long-format TSV
-    (one row per sample×variant) suitable for downstream QC and visualisation.
-
-    @Input:  GATK VariantsToTable output from bcftools_merge (in final_report/)
-    @Output: long-format variants TSV in final_report/{target}/
-    """
+    """Reshape the aggregate variants table into a long TSV, one row per sample x variant."""
     input:
         tbl = join(_FR, "{target}", "aggregate.{target}.snpeff.variants.txt"),
         script = join(WORKPATH, "workflow", "scripts", "make_variants_long_table.py"),
@@ -349,28 +272,8 @@ python3 "{input.script}" \
 # ── make_variants_matrix ──────────────────────────────────────────────────────
 
 rule make_variants_matrix:
-    """
-    Reshape the aggregate variants table into a variant x sample matrix: one
-    row per variant, an AD and a percentage column per sample.
-
-    This is the shape that answers the question a multi-sample viral run is
-    usually asking - is this variant fixed everywhere, or a minor allele in a
-    few samples - which the long table can only answer after a pivot. An empty
-    cell means the variant was not called in that sample and is left empty
-    rather than zeroed, since 0 would claim the site was examined.
-
-    Built twice, over {vset} in (raw, filtered), because the pair answers
-    different questions. The raw set is what FreeBayes called under its own
-    thresholds and is the one to consult when an expected variant is absent -
-    it distinguishes "never called" from "called and filtered out". The
-    filtered set applies the SnpSift expression and is the one to report.
-
-    Depends on gatk_variants_to_table being given -F TYPE -F ANN; without the
-    ANN field the annotation columns are silently blank.
-
-    @Input:  GATK VariantsToTable output (in final_report/)
-    @Output: variant x sample matrix TSV in final_report/{target}/
-    """
+    """Variant x sample matrix (AD and percentage per sample), built for the raw and
+    filtered sets. Needs -F TYPE -F ANN in gatk_variants_to_table."""
     input:
         tbl = lambda wc: join(
             _FR, wc.target,
@@ -406,21 +309,8 @@ python3 "{input.script}" \
 # ── bcftools_merge_filtered ───────────────────────────────────────────────────
 
 rule bcftools_merge_filtered:
-    """
-    Merge the per-sample SnpSift-filtered VCFs into one aggregate.
-
-    The main bcftools_merge runs on the pre-SnpSift annotated VCFs, so what it
-    produces is the raw set. The filter is applied per sample and, without this
-    rule, never reaches an aggregate at all - so there was no cross-sample view
-    of the reported variants, only of the raw ones.
-
-    FORMAT/GL and FORMAT/PL are stripped for the same reason as in
-    bcftools_merge: htsjdk cannot parse FreeBayes' GL representation, and
-    downstream GATK fails on it.
-
-    @Input:  per-sample SnpSift-filtered VCFs
-    @Output: aggregate filtered VCF in final_report/{target}/
-    """
+    """Merge the per-sample SnpSift-filtered VCFs into one aggregate, stripping
+    FORMAT/GL and PL as bcftools_merge does."""
     input:
         vcfs = expand(
             join(WORKPATH, "{sample}", "variant_calling", "{{target}}",
@@ -470,16 +360,8 @@ tabix -p vcf "{output.vcf}" >> "{log}" 2>&1
 # ── gatk_aggregate_table_filtered ─────────────────────────────────────────────
 
 rule gatk_aggregate_table_filtered:
-    """
-    Flatten the aggregate filtered VCF into a table, mirroring
-    gatk_aggregate_table so both matrices carry identical columns.
-
-    The per-sample VCFs were annotated before SnpSift filtered them, so ANN is
-    already present and no second snpEff pass is needed here.
-
-    @Input:  aggregate filtered VCF
-    @Output: aggregate filtered variants table
-    """
+    """Flatten the aggregate filtered VCF into a table with the same columns as
+    gatk_aggregate_table."""
     input:
         vcf = rules.bcftools_merge_filtered.output.vcf,
         tbi = rules.bcftools_merge_filtered.output.tbi,
@@ -511,21 +393,8 @@ gatk VariantsToTable {params.extra} \
 # ── plot_report_figures ───────────────────────────────────────────────────────
 
 rule plot_report_figures:
-    """
-    Static figures for readers who will not open a genome browser.
-
-    Four pictures per target: a per-sample genome overview (depth, masked
-    regions, variant needles), a variant x sample heatmap that puts the whole
-    run on one page, all samples' depth on one axis, and library composition.
-
-    Presentational only - every number is read back out of files the pipeline
-    already wrote, so a figure can be wrong but it cannot make a result wrong.
-    Runs in the quast image because that already carries matplotlib; no
-    separate image is pulled for plotting.
-
-    @Input:  filtered variants matrix, run_summary, mosdepth, low-coverage BEDs
-    @Output: final_report/{target}/figures/
-    """
+    """Static per-target figures for readers who will not open a genome browser, drawn
+    only from files the pipeline already wrote."""
     input:
         matrix = join(_FR, "{target}", "aggregate.{target}.variants_matrix.filtered.tsv"),
         comps  = expand(
@@ -571,24 +440,8 @@ touch "{output.done}"
 # ── igv_downsample_bam ────────────────────────────────────────────────────────
 
 rule igv_downsample_bam:
-    """
-    A shallow copy of a sample's alignment, for the IGV report only.
-
-    igv-reports embeds read data for every site in every track, so its cost is
-    variants x samples x window x depth. At 324,000x that produced a 10.5 GB
-    "self-contained" HTML no browser can open, and OOM-killed the other target
-    at 32 GB. Tuning --flanking and --subsample did not bound it; the input has
-    to be bounded instead.
-
-    Downsampling to a fixed target depth makes the report's size a function of
-    the number of variants alone, independent of how deep the run was. Nothing
-    is lost visually: a pileup 200 reads deep and one 324,000 reads deep look
-    the same in a browser, and the allele fractions people actually rely on
-    come from the variant tables, not from counting reads here.
-
-    @Input:  per-sample alignment
-    @Output: temp downsampled BAM + index, consumed only by igv_report
-    """
+    """Downsample a sample's alignment to igv_target_depth for the IGV report only, so
+    report size depends on variant count rather than sequencing depth."""
     input:
         bam = join(WORKPATH, "{sample}", "alignment", "{target}",
                    "{sample}.{target}.bowtie2_map.bam"),
@@ -621,9 +474,7 @@ MEAN=$(awk -F'\\t' '$1=="total" {{print $4}}' "{input.summ}" | head -1)
 [ -n "$MEAN" ] || MEAN=$(awk -F'\\t' 'NR==2 {{print $4}}' "{input.summ}")
 [ -n "$MEAN" ] || MEAN=0
 
-# Keep everything when the sample is already at or below the target: sampling
-# a shallow library would throw away the evidence someone opened the report to
-# look at.
+# Keep every read when the sample is already at or below the target depth.
 FRAC=$(awk -v m="$MEAN" -v t={params.target_depth} \
     'BEGIN {{ if (m <= t || m <= 0) print 1; else printf "%.6f", t/m }}')
 echo "mean depth $MEAN, target {params.target_depth}, keeping fraction $FRAC" >> "{log}"
@@ -641,17 +492,8 @@ samtools index -@ {threads} "{output.bam}" >> "{log}" 2>&1
 # ── igv_report ────────────────────────────────────────────────────────────────
 
 rule igv_report:
-    """
-    Self-contained HTML variant report with an embedded igv.js browser.
-
-    The IGV session XML this pipeline also writes needs the recipient to have
-    IGV installed and the run directory mounted. This does not: igv-reports
-    embeds the reference, the variants and the alignment slices around each
-    site into one HTML file, so it can be emailed or published and still work.
-
-    @Input:  aggregate filtered VCF, per-sample BAMs, reference FASTA
-    @Output: final_report/{target}/igv_report.{target}.html
-    """
+    """Self-contained HTML variant report with embedded igv.js, viewable without IGV or
+    access to the run directory."""
     input:
         vcf  = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz"),
         tbi  = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz.tbi"),
@@ -684,9 +526,7 @@ rule igv_report:
     shell: """
 set -euo pipefail
 
-# An empty variant set is a real outcome, not a failure: a target with nothing
-# called still gets a report, so its absence always means something went wrong
-# rather than "there was nothing to show".
+# An empty variant set still gets a report, so a missing report means a failure.
 if ! create_report "{input.vcf}" \
         --fasta "{input.fa}" \
         --flanking {params.flanking} \
@@ -702,21 +542,8 @@ fi
 # ── multiqc_report ────────────────────────────────────────────────────────────
 
 rule multiqc_report:
-    """
-    Project-wide MultiQC aggregating all stages (pre-process, alignment,
-    variant-calling, lineage) across all samples. This is the cross-sample
-    view of the strain calls: the per-sample lineage reports show one sample
-    each, so comparing lineages between samples happens here.
-
-    MultiQC scans the whole run directory rather than a file list, so it will
-    happily run early and silently omit whatever has not been written yet. The
-    inputs below exist purely to order it after every stage that it reports on:
-    they are the terminal QC artifacts of each stage, named explicitly so a
-    stage cannot be dropped from the ordering by accident.
-
-    @Input:  the QC artifacts of every stage, for ordering only
-    @Output: project-level MultiQC HTML written directly into final_report/multiqc/
-    """
+    """Project-wide MultiQC across all stages and samples. Inputs only order it after
+    every stage, since MultiQC scans the run directory rather than a file list."""
     input:
         fastp_json = expand(
             join(WORKPATH, "{sample}", "pre_process",
@@ -789,13 +616,7 @@ mv "{params.outdir}/multiqc_report.html" "{output.html}"
 # ── make_igv_session ──────────────────────────────────────────────────────────
 
 rule make_igv_session:
-    """
-    Generate an IGV XML session file for a target, loading all sample BAMs,
-    annotated VCFs, and consensus FASTAs alongside the reference FASTA.
-
-    @Input:  per-sample BAMs + annotated VCFs + consensus FASTAs, reference FASTA
-    @Output: IGV XML session file in final_report/{target}/
-    """
+    """IGV XML session for a target: every sample BAM, annotated VCF and consensus FASTA."""
     input:
         bams = expand(
             join(WORKPATH, "{sample}", "alignment", "{{target}}",
@@ -843,33 +664,8 @@ python3 "{input.script}" \\
 # ── final_report ──────────────────────────────────────────────────────────────
 
 rule final_report:
-    """
-    Assemble final_report/ — the directory a user opens first after a run.
-
-    Every aggregate rule writes into final_report/{target}/ already; this rule
-    sorts those into consensus/ lineage/ variants/ qc/, pulls in the per-sample
-    outputs that were otherwise buried (consensus FASTAs, lineage calls,
-    Kraken2 composition, coverage), and writes run_summary.tsv — one row per
-    sample x target joining read composition, mapping, depth, consensus
-    masking, variant count and all three lineage callers.
-
-    Layout
-    ------
-    final_report/
-    ├── run_summary.tsv          <- start here
-    ├── multiqc/
-    │   └── project_multiqc_report.html
-    └── {target}/
-        ├── consensus/   per-sample + combined consensus FASTA
-        ├── lineage/     nextclade + lineage_summary.tsv
-        ├── variants/    aggregate VCFs + variant tables
-        ├── qc/          mapping, mosdepth, low-cov mask, kraken composition
-        ├── igv_session.{target}.xml
-        └── quast/
-
-    @Input:  all report-stage outputs, project MultiQC, lineage calls
-    @Output: sentinel flag file
-    """
+    """Assemble final_report/, the directory to open first: sort aggregates into
+    consensus/, lineage/, variants/ and qc/, and write run_summary.tsv."""
     input:
         multiqc_html = join(_FR, "multiqc", "project_multiqc_report.html"),
         consensus = expand(

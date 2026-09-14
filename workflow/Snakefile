@@ -1,33 +1,5 @@
-# ############################################################################
-# viralrecon — main Snakefile
-# Viral variation analysis pipeline (OpenOmics/baseline structure)
-# ############################################################################
-#
-# Execution DAG
-# -------------
-#   inputs/{sample}.R1/R2.fastq.gz
-#       │
-#       ▼  [per sample — shared across all targets]
-#   pre_process:  bbtools_reformat -> fastp_trim -> kraken2_decon -> fastqc/multiqc
-#       │
-#       ├──►  [per sample × target — parallel branches]
-#       │     alignment:      bowtie2_map → flagstat/idxstats → fastqc/multiqc
-#       │
-#       ├──►  variant_calling: freebayes → snpEff → GATK VariantsToTable
-#       │
-#       ├──►  report/{target}/: bcftools_merge (all samples) -> snpEff -> multiqc
-#       │
-#       └──►  lineage/{target}/: nextclade [reference carries a dataset]
-#
-# Configuration
-# -------------
-# A. Inputs   → read from {WORKPATH}/inputs/{sample}.R1/R2.fastq.gz
-# B. Outputs  → write under {WORKPATH}/{sample}/<stage>/{target}/
-# C. Targets  → set by config["targets"] (CLI --targets or all of genome.json)
-# D. Resources→ every rule uses allocated() against config/cluster.json
-# E. Wiring   → add final outputs to rule all; add new rules via include:
-#
-# ############################################################################
+# viralrecon: pre_process, then per sample x target alignment, variant_calling, report
+# and lineage. Rules live in rules/*.smk; resources come from config/cluster.json.
 
 import json
 import os
@@ -40,11 +12,8 @@ from scripts.common import allocated, provided, references, str_bool
 # ── Global config ────────────────────────────────────────────────────────────
 configfile: "config.json"
 
-# Validate before anything else touches config. A missing or mistyped key
-# otherwise surfaces as a KeyError inside a rule, on a compute node, minutes
-# into a run; this names the key at DAG-build time instead. Failure to validate
-# is not fatal on its own - an older Snakemake or a missing jsonschema should
-# not block a run - but a genuine schema violation is.
+# Validate config first so a bad key fails at DAG build, not inside a rule. A missing
+# jsonschema is tolerated; a real schema violation is fatal.
 try:
     validate(config, join(workflow.basedir, "schemas", "config.schema.yaml"))
 except WorkflowError:
@@ -78,30 +47,16 @@ if not TARGETS:
         .format(PLATFORM)
     )
 
-# Each target's own taxid, recorded by `viralrecon build`, so the Kraken2
-# composition profile breaks out whichever viruses this run is actually about.
-# The pipeline is not coronavirus-specific; hardcoding one virus's taxid here
-# would report the wrong organism for every other target.
-# Restricted to the targets this run selected, not every entry in genome.json.
-# genome.json is an accumulating registry shared across runs, so reading all of
-# it made profile_ids - and therefore kraken2_decon's params - change whenever
-# any unrelated reference was registered. That invalidated the depleted FASTQs
-# every alignment consumes and forced a full re-run of finished output
-# directories that had nothing to do with the new reference.
+# Taxids of this run's selected targets, for the Kraken2 profile. Selected targets only,
+# so registering an unrelated reference does not rerun kraken2_decon.
 TARGET_TAXIDS = sorted({
     str(_e["taxid"])
     for _t, _e in config["references"]["target"].get(PLATFORM, {}).items()
     if _t in TARGETS and isinstance(_e, dict) and _e.get("taxid")
 })
 
-# Lineage is nextclade alone, and the gate is the reference itself. A target
-# carries its own dataset path in genome.json, written by `viralrecon build
-# --nextclade-dataset`; presence of that path is the gate. A target without one
-# is skipped rather than described against the wrong virus's dataset, which
-# would return confident nonsense instead of failing.
-#
-# This is what makes the stage work for any virus: adding a new one is a
-# reference with a dataset, not a code change.
+# Lineage runs only for targets whose genome.json entry carries a Nextclade dataset, so
+# any virus is supported by adding a dataset and the rest are skipped.
 _TARGET_REFS = config["references"]["target"][PLATFORM]
 
 def nextclade_dataset_for(target):
@@ -110,9 +65,7 @@ def nextclade_dataset_for(target):
 
 NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
 
-# Kept as its own name for the places that ask only "does this target produce
-# lineage output at all" - the final_report lineage directory and the MultiQC
-# ordering - so a second caller could return without touching them.
+# Separate name for code that only asks whether a target has lineage output.
 LINEAGE_TARGETS = list(NEXTCLADE_TARGETS)
 
 # ── Cluster resource map ──────────────────────────────────────────────────────
@@ -120,12 +73,7 @@ with open(join(WORKPATH, "config", "cluster.json")) as fh:
     cluster = json.load(fh)
 
 # ── Local rules (run in master job, never submitted to SLURM) ─────────────────
-# Lightweight rules — symlinks, short Python/bash scripts — run directly on the
-# master node.  Heavy compute (alignment, variant calling, MultiQC, QUAST) stays
-# as cluster jobs.
-# Only custom_virmapDB stays local: it is nothing but `ln -sf`. The Python
-# one-shots now run in the python image, so they are submitted like any other
-# containerised rule rather than executing in the master job's environment.
+# Only custom_virmapDB, which is nothing but `ln -sf`.
 localrules:
     custom_virmapDB,       # just ln -sf symlinks
 
@@ -137,9 +85,8 @@ rule all:
             join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
             target=TARGETS,
         ),
-        # Pre-process: Kraken2 screen + depletion summary + Krona chart.
-        # krona_plot is its own rule (Krona has no python3, kraken2 has no
-        # Krona), so its output must be requested explicitly.
+        # Pre-process: Kraken2 screen, depletion summary and Krona chart (krona_plot is
+        # its own rule, so its output is requested here).
         expand(
             join(WORKPATH, "{sample}", "pre_process", "kraken2",
                  "{sample}.kraken2_decon.composition.tsv"),
@@ -162,9 +109,8 @@ rule all:
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Variant calling: per-sample per-target annotated VCFs and the flat
-        # variants table. The table is its own rule (GATK has no htslib), so
-        # it must be requested explicitly.
+        # Variant calling: per-sample annotated VCFs and the variants table, which is its
+        # own rule and so requested here.
         expand(
             join(WORKPATH, "{sample}", "variant_calling", "{target}",
                  "{sample}.{target}.freebayes_haplotypecaller.snpeff.vcf.gz"),
@@ -205,9 +151,7 @@ rule all:
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Final report: all aggregate outputs + per-sample stage MultiQC reports
-        # (final_report/.done depends on all bcftools_merge, quast, igv, variants-table
-        #  outputs which are written directly into final_report/{target}/)
+        # Final report: .done depends on every aggregate output in final_report/{target}/.
         join(WORKPATH, "final_report", ".done"),
         # Lineage: nextclade for any reference carrying a dataset. A target
         # without one simply produces no lineage output.

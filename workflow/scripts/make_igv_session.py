@@ -1,20 +1,6 @@
 #!/usr/bin/env python3
-"""
-make_igv_session.py
--------------------
-Generate an IGV XML session file that loads per-sample BAMs, annotated VCFs,
-and consensus FASTAs alongside a reference FASTA for a single target.
-
-Usage
------
-python3 make_igv_session.py \\
-    --target   SARS-CoV-2 \\
-    --ref      /path/to/SARS-CoV-2.fa \\
-    --bams     s1.bam s2.bam ... \\
-    --vcfs     s1.vcf.gz s2.vcf.gz ... \\
-    --fastas   s1.consensus.fa s2.consensus.fa ... \\
-    --output   igv_session.SARS-CoV-2.xml
-"""
+"""Write an IGV XML session loading per-sample BAMs, annotated VCFs and consensus
+FASTAs beside the reference FASTA for one target."""
 
 import argparse
 import os
@@ -55,7 +41,7 @@ def make_session(target, ref, bams, vcfs, fastas, output):
         name = os.path.basename(fa).split(".consensus.fa")[0]
         ET.SubElement(resources, "Resource", path=fa, name=name + " (consensus)")
 
-    # Panel layout: group tracks by sample — BAM, VCF, then consensus FASTA
+    # Panel layout: group tracks by sample (BAM, VCF, then consensus FASTA)
     panel = ET.SubElement(root, "Panel", name="DataPanel")
 
     for bam in bams:

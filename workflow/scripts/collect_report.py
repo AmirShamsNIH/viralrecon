@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-collect_report.py — parse samtools flagstat outputs and write a mapping
-summary TSV for a given viral target.
-
-Usage:
-    collect_report.py \\
-        --flagstats <s1.flagstat> [<s2.flagstat> ...] \\
-        --output    <outfile.tsv> \\
-        --target    <target_name>
-"""
+"""Parse samtools flagstat outputs and write a mapping summary TSV for one target."""
 
 import argparse
 import os
@@ -45,13 +36,8 @@ def parse_flagstat(path):
 
 
 def sample_name(flagstat_path, target):
-    """
-    Sample name from a path like .../{sample}.{target}.bowtie2_map.flagstat
-
-    The target is stripped by exact match rather than by splitting on the last
-    dot: target names legitimately contain dots (SARS_NC_045512.2), so any
-    positional guess loses the accession suffix.
-    """
+    """Sample name from .../{sample}.{target}.bowtie2_map.flagstat. The target is
+    stripped by exact match because target names contain dots."""
     base = os.path.basename(flagstat_path)
     for suf in (".flagstat", ".bowtie2_map"):
         base = base.rsplit(suf, 1)[0]

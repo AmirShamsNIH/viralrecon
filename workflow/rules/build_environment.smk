@@ -1,25 +1,5 @@
-# ############################################################################
-# build_environment.smk — wire pre-built viral reference databases
-#
-# All indexing (bowtie2-build, samtools faidx/dict, snpEff build) is done
-# OUTSIDE the pipeline by 'viralrecon build'.  This rule simply symlinks the
-# pre-built files from the reference directory into ref_db/{target}/ so the
-# rest of the pipeline can find them under a consistent path.
-#
-# Pre-built directory layout (produced by viralrecon build):
-#   {genome_dir}/
-#     {target}.fa          reference FASTA
-#     {target}.fa.fai      samtools faidx index
-#     {target}.dict        sequence dictionary
-#     {target}.1.bt2       Bowtie2 index (+ .2 .3 .4 .rev.1 .rev.2)
-#     genes.gff            GFF3 annotation
-#     sequences.fa         snpEff copy of FASTA
-#     genes.gff (copy)     snpEff copy of annotation
-#     snpEff.config        snpEff database config
-#
-# Run 'viralrecon build --virus X --accession Y --output /data/refs'
-# to produce the above layout before launching 'viralrecon run'.
-# ############################################################################
+# build_environment.smk: symlink a reference prebuilt by `viralrecon build` into
+# ref_db/{target}/ so every rule finds it at one path.
 
 import os
 from os.path import join
@@ -27,16 +7,8 @@ from scripts.common import allocated
 
 
 rule custom_virmapDB:
-    """
-    Wire pre-built reference into ref_db/{target}/ via symlinks.
-
-    Inputs are the pre-built index files produced by 'viralrecon build'.
-    Snakemake validates they exist before this rule runs — if any are missing,
-    the pipeline fails with a clear missing-input error pointing to build.
-
-    @Input:   Pre-built FASTA, fai, dict, bt2, snpEff.config from genome dir
-    @Output:  Symlinks in ref_db/{target}/ pointing to each pre-built file
-    """
+    """Symlink the prebuilt reference files into ref_db/{target}/. Missing inputs fail
+    before the rule runs, pointing back to `viralrecon build`."""
     input:
         fasta   = lambda wc: config["references"]["target"][PLATFORM][wc.target]["fasta"],
         fai     = lambda wc: config["references"]["target"][PLATFORM][wc.target]["fasta"] + ".fai",

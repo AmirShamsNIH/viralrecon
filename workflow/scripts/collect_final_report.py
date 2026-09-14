@@ -1,24 +1,6 @@
 #!/usr/bin/env python3
-"""
-Assemble final_report/ : the one directory a user should open after a run.
-
-Everything here is copied or derived from outputs that already exist elsewhere
-in the run tree. The point is that answering "did this work, and what strain is
-it?" should not require opening five directories per sample.
-
-Layout produced
----------------
-final_report/
-  run_summary.tsv                     one row per sample x target
-  multiqc/                            project-wide MultiQC
-  {target}/
-    consensus/                        per-sample + combined consensus FASTA
-    lineage/                          nextclade + summary
-    variants/                         aggregate VCFs and variant tables
-    qc/                               mapping, coverage, contamination profile
-    igv_session.{target}.xml
-    quast/
-"""
+"""Assemble final_report/, the one directory to open after a run, from outputs that
+already exist elsewhere in the run tree."""
 
 import argparse
 import csv
@@ -107,19 +89,8 @@ def stub_reason(path, marker):
 
 
 def lineage_failures(next_):
-    """
-    Name the lineage caller if it ran and failed for one sample x target.
-
-    The caller is non-fatal by design: a failure stubs their outputs so the
-    run completes, which is right, but it also means a failure is invisible in
-    a summary that only shows blank columns. This turns each stub back into a
-    named reason for qc_status.
-
-    A missing file is not a failure. A target whose reference carries no
-    Nextclade dataset is gated out and writes nothing at all, which is a
-    deliberate skip rather than something to warn about. Only a file that
-    exists and carries a stub marker counts here.
-    """
+    """Name the lineage caller if it ran and left a stub for this sample x target.
+    A missing file is a deliberate skip (no dataset), not a failure."""
     failed = []
     if stub_reason(next_, "nextclade_error"):
         failed.append("NEXTCLADE_FAILED")
@@ -127,19 +98,8 @@ def lineage_failures(next_):
 
 
 def target_failures(FR, target):
-    """
-    Name the target-level artefacts that ran and failed.
-
-    Per-sample callers are covered by lineage_failures. This covers the things
-    produced once per target, which had no coverage at all: the IGV report
-    OOM-killed on a deep run, wrote its "unavailable" stub, and every row still
-    read "pass" because nothing looked at it. A non-fatal guard that leaves no
-    trace in run_summary is only half a design - the run survives, but the
-    reader is told nothing went wrong.
-
-    Detected by stub marker rather than by exit code, since by the time this
-    runs the rule has already succeeded from Snakemake's point of view.
-    """
+    """Name the target-level artefacts that ran and left a stub, such as an OOM-killed
+    IGV report, so run_summary does not read "pass" over a failure."""
     failed = []
     igv = join(FR, target, "igv_report.%s.html" % target)
     if stub_reason(igv, "IGV report unavailable"):
@@ -246,18 +206,13 @@ def main():
         var_d,  qc_d  = join(tdir, "variants"),  join(tdir, "qc")
         for d in (cons_d, var_d, qc_d):
             os.makedirs(d, exist_ok=True)
-        # lineage/ only for targets the callers can actually describe. An empty
-        # directory reads as "this failed", so a target the lineage stage never
-        # applied to gets no directory rather than an empty one; run_summary.tsv
-        # carries the qc column that says why.
+        # lineage/ only for targets the stage applies to: an empty directory reads as
+        # a failure, and run_summary.tsv says why it is absent.
         if target in lineage_targets:
             os.makedirs(lin_d, exist_ok=True)
 
-        # Aggregate outputs are already in final_report/{target}/ because the
-        # rules that make them declare them there. They are COPIED into the
-        # subdirectories, never moved: they are Snakemake-declared outputs, and
-        # moving them would make every subsequent run consider bcftools_merge
-        # incomplete and redo it.
+        # Aggregates are copied, never moved: they are Snakemake outputs, and moving
+        # them would make the next run redo bcftools_merge.
         for pat in ("aggregate.%s.vcf.gz*", "aggregate.%s.snpeff.vcf.gz*",
                     "aggregate.%s.snpeff.variants.txt",
                     "aggregate.%s.variants_long.tsv",
@@ -305,10 +260,8 @@ def main():
                 join(al, "%s.%s.bowtie2_map.raw.flagstat" % (s, target)))
             used, _ = flagstat_mapped(
                 join(al, "%s.%s.bowtie2_map.flagstat" % (s, target)))
-            # Breadth, not just depth. A divergent reference can attract
-            # millions of cross-mapping reads into conserved regions while
-            # most of the genome stays uncovered, so a read-count gate alone
-            # reports "pass" on a target that is half missing.
+            # Breadth, not just depth: cross-mapping reads can pile into conserved
+            # regions of a divergent reference while most of it stays uncovered.
             glen   = genome_length(join(W, "ref_db", target, "%s.fa.fai" % target))
             masked = count_ns(cons)
             covered = ""
@@ -370,10 +323,8 @@ def main():
     print("final_report assembled: %d rows across %d target(s)"
           % (len(rows), len(a.targets)))
 
-    # Say out loud what qc_status now records. A stubbed caller is easy to miss
-    # as a blank column in a wide TSV, and the whole point of the non-fatal
-    # design is that the run still reports COMPLETED - so the log has to carry
-    # the warning that the exit code no longer does.
+    # Log what qc_status records: a stubbed caller still ends COMPLETED, so the log
+    # has to carry the warning the exit code no longer does.
     warned = [r for r in rows if r["qc_status"] != "pass"]
     if warned:
         tally = {}

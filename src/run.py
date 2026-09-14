@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-Pipeline initialisation, config assembly, and launch logic.
-Mirrors the OpenOmics/baseline src/run.py pattern.
-"""
+"""Pipeline initialisation, config assembly and launch logic."""
 
 import json
 import os
@@ -30,9 +27,7 @@ except ImportError:
         _os.path.join(_os.path.dirname(__file__), '..', 'VERSION')
     ).read().strip()
 
-# ---------------------------------------------------------------------------
 # Input-file normalisation
-# ---------------------------------------------------------------------------
 
 ILLUMINA_R1 = '.R1.fastq.gz'
 ILLUMINA_R2 = '.R2.fastq.gz'
@@ -89,15 +84,11 @@ def _verify_mates(ifiles):
         )
 
 
-# ---------------------------------------------------------------------------
 # Output-directory initialisation
-# ---------------------------------------------------------------------------
 
 def init(repo_path, output_path, links=None, refresh=False):
-    """Create the output directory and symlink input files into inputs/.
-    Copies workflow, config, and resources from the repo into output_path.
-    Returns a list of renamed symlink paths.
-    """
+    """Create output_path, copy workflow, config and resources into it, and symlink
+    inputs into inputs/. Returns the renamed symlink paths."""
     links = links or []
     required = ['workflow', 'resources', 'config']
 
@@ -118,14 +109,8 @@ def init(repo_path, output_path, links=None, refresh=False):
 
 
 def _copy_safe(source, target, resources, refresh=False):
-    """Copy resource directories from source into target.
-
-    'config' and 'resources' are copied only once (non-destructive) so user
-    edits to config.json in the output dir are preserved across relaunches.
-
-    'workflow' is ALWAYS refreshed from the repo so rule-file fixes made in
-    the repo propagate to running output directories automatically.
-    """
+    """Copy resource directories into target. config and resources are copied once to
+    keep user edits; workflow is always refreshed so rule fixes reach existing runs."""
     always_refresh = {'workflow'}
     for resource in resources:
         src = os.path.join(source, resource)
@@ -137,10 +122,8 @@ def _copy_safe(source, target, resources, refresh=False):
             else:
                 os.remove(dst)
         if not exists(dst) and exists(src):
-            # The copy in the output directory is what actually executes
-            # (kickoff.sh runs `snakemake -s workflow/Snakefile` from there),
-            # so it is the run's audit trail. Keep interpreter and editor
-            # droppings out of it.
+            # This copy is what executes and is the run's audit trail, so keep
+            # interpreter and editor droppings out of it.
             copytree(src, dst, ignore=ignore_patterns(
                 '__pycache__', '*.pyc', '*.pyo', '.DS_Store', '._*'))
 
@@ -162,7 +145,7 @@ def _sym_safe(input_files, target, input_dirname='inputs'):
     clashes = {n: s for n, s in collision.items() if len(s) > 1}
     if clashes:
         fatal(
-            "\n\tFatal: Input filename collision — two files would produce the "
+            "\n\tFatal: Input filename collision: two files would produce the "
             "same symlink:\n\t  {}".format(clashes)
         )
 
@@ -173,9 +156,7 @@ def _sym_safe(input_files, target, input_dirname='inputs'):
     return renamed
 
 
-# ---------------------------------------------------------------------------
 # Config assembly
-# ---------------------------------------------------------------------------
 
 def setup(sub_args, ifiles, repo_path, output_path):
     """Build the merged pipeline config from template JSON files + user inputs."""
@@ -218,7 +199,7 @@ def setup(sub_args, ifiles, repo_path, output_path):
     })
     config['project']['datapath'] = ','.join(rawdata_dirs)
 
-    # Target selection — driven by the genome.json from 'viralrecon build'
+    # Target selection: driven by the genome.json from 'viralrecon build'
     platform = getattr(sub_args, 'platform', 'BIOWULF')
 
     genome_json_path = getattr(sub_args, 'genome', None)
@@ -274,7 +255,7 @@ def setup(sub_args, ifiles, repo_path, output_path):
             if _n:
                 print("  note [{}]: {}".format(_t, _n))
     else:
-        # Fallback: legacy mode — look up targets in the pipeline's own genome.json
+        # Fallback: legacy mode, look up targets in the pipeline's own genome.json
         config['project']['genomepath'] = ''
         all_targets = list(
             config.get('references', {}).get('target', {}).get(platform, {}).keys()
@@ -300,14 +281,8 @@ def setup(sub_args, ifiles, repo_path, output_path):
             continue
         config['options'][opt] = str(val) if not isinstance(val, (list, dict)) else val
 
-    # Container images and platform-dependent data paths.
-    #
-    # containers.json ships image paths written against per-platform roots, and
-    # config.json ships the databases that live at a different absolute path on
-    # every cluster. Both are resolved here, once, so the config handed to
-    # Snakemake carries only real paths -- the workflow never has to know which
-    # platform it is on, and _resolve_bind_paths below sees the resolved paths
-    # and binds their directories without a second list to maintain.
+    # Resolve image and platform-dependent database paths once, so the Snakemake
+    # config carries only real paths and bind paths follow from them.
     _container_data = {k: config[k] for k in ('roots', 'images') if k in config}
     config['images'] = containers.resolve_images(
         repo_path, platform, data=_container_data)
@@ -319,9 +294,7 @@ def setup(sub_args, ifiles, repo_path, output_path):
     config['bindpaths'] = _resolve_bind_paths(sub_args, config)
 
     # ── Slim the config before writing ────────────────────────────────────────
-    # Only keep the fields that the Snakemake workflow actually reads.
-    # Verbose metadata (CLI dumps, pipeline stage lists, inactive-platform refs)
-    # bloats the file and makes it harder to audit by hand.
+    # Keep only fields the workflow reads, so the file stays auditable by hand.
 
     # options: only what the Snakefile reads
     _WORKFLOW_OPTS = {"output", "platform"}
@@ -341,11 +314,8 @@ def setup(sub_args, ifiles, repo_path, output_path):
             if plat != platform:
                 del refs[plat]
 
-    # tools and paths are keyed <name> -> <platform> -> value, alongside
-    # commentary and metadata keys that are not platforms. Only mappings are
-    # trimmed, and only their platform keys: a "_comment" list or a
-    # "_parameter_stage" string is neither, and treating one as a platform map
-    # is what an earlier version did until it hit .keys() on a list.
+    # tools and paths are keyed <name> -> <platform> -> value. Trim only mappings,
+    # so commentary keys such as "_comment" lists are left alone.
     for _section in ("tools", "paths"):
         for _name, _map in list(config.get(_section, {}).items()):
             if _name.startswith("_") or not isinstance(_map, dict):
@@ -358,20 +328,8 @@ def setup(sub_args, ifiles, repo_path, output_path):
 
 
 def _apply_platform_paths(config, platform):
-    """
-    Write the active platform's value for each entry in config['paths'] into
-    the parameter that reads it.
-
-    These are databases the pipeline does not build -- the Kraken2 index, the
-    Krona taxonomy -- which exist on every cluster but never at the same path.
-    Keeping one platform-keyed table and resolving it here means a rule reads a
-    plain path, and adding a platform is an edit to config.json rather than to
-    the workflow.
-
-    A platform with no entry is fatal rather than defaulted: silently falling
-    back to a Biowulf path produces a run that fails deep inside a rule with a
-    missing-file error that says nothing about the real cause.
-    """
+    """Write the active platform's value of each config['paths'] entry into the
+    parameter that reads it. A platform with no entry is fatal, never defaulted."""
     for name, spec in (config.get('paths') or {}).items():
         if name.startswith('_') or not isinstance(spec, dict):
             continue
@@ -389,17 +347,8 @@ def _apply_platform_paths(config, platform):
 
 
 def _apply_platform_partition(output_path, platform):
-    """
-    Set __default__.partition in the run directory's cluster.json to the queue
-    this platform actually has.
-
-    The default queue is `norm` on Biowulf and `all` on BigSky, and a job
-    submitted to a queue that does not exist is rejected by sbatch with an
-    error that reads as a configuration typo rather than a portability
-    problem. The template keeps the mapping in __partition__; only the copy
-    inside the run directory is rewritten, so the repository file stays
-    platform-neutral.
-    """
+    """Set __default__.partition in the run directory's cluster.json to this platform's
+    queue (norm on Biowulf, all on BigSky); the repository file is left untouched."""
     path = os.path.join(output_path, 'config', 'cluster.json')
     if not exists(path):
         return
@@ -454,9 +403,7 @@ def save_config(config, output_path):
         json.dump(config, fh, indent=4, sort_keys=True)
 
 
-# ---------------------------------------------------------------------------
 # Pipeline execution
-# ---------------------------------------------------------------------------
 
 def dryrun(outdir, config='config.json',
            snakefile=os.path.join('workflow', 'Snakefile')):
@@ -571,15 +518,10 @@ def _runner(mode, outdir, alt_cache, logger, additional_bind_paths='',
         fatal("Unknown execution mode: '{}'.".format(mode))
 
 
-# ---------------------------------------------------------------------------
 # Entry-point functions called by the CLI
-# ---------------------------------------------------------------------------
 
 def run(sub_args, repo_path):
-    """
-    Main entry point for ``viralrecon run``.
-    Builds the config, optionally dry-runs, then launches the pipeline.
-    """
+    """Entry point for `viralrecon run`: build the config, optionally dry-run, then launch."""
     pl_name = 'viralrecon'
 
     # 1. Initialise output directory and assemble config
@@ -600,10 +542,7 @@ def run(sub_args, repo_path):
 
 
 def unlock(sub_args, repo_path):
-    """
-    Entry point for ``viralrecon unlock``.
-    Removes the Snakemake directory lock from a stuck output directory.
-    """
+    """Entry point for `viralrecon unlock`: remove a stale Snakemake lock."""
     outdir = sub_args.output
     try:
         subprocess.check_call(

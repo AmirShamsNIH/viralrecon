@@ -1,24 +1,10 @@
-# MultiQC configuration for viralrecon.
-#
-# Two problems this solves that cannot be fixed at the rule level:
-#
-# 1. Sample-name decoration. The lineage callers take their sample name from
-#    the consensus FASTA header (SAMPLE_TARGET_consensus) while other tools
-#    derive it from the filename, so one sample renders as several unrelated
-#    rows. The cleaning rules below strip the decorations so everything lands
-#    on one row per sample and can be compared at a glance.
-#
-# 2. The pre-filter flagstat. bowtie2_map writes *.bowtie2_map.raw.flagstat to
-#    record the true library mapping rate before unmapped records are dropped.
-#    It is deliberately not a MultiQC input; without ignoring it here MultiQC
-#    finds it by directory scan and reports it as a second, phantom sample.
+# MultiQC config: strip sample-name decorations so each sample is one row, and ignore
+# the pre-filter *.bowtie2_map.raw.flagstat, which would show as a phantom sample.
 
 fn_ignore_files:
   - "*.raw.flagstat"
 
-# bcftools_consensus writes the header as {sample}.{target}, matching the key
-# other tools derive from the filename. "_consensus" is kept for consensus
-# FASTAs produced before that change.
+# bcftools_consensus headers are {sample}.{target}; "_consensus" covers older FASTAs.
 extra_fn_clean_exts:
   - "_consensus"
   - ".bowtie2_map"

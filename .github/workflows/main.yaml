@@ -1,9 +1,7 @@
 name: lint-and-dryrun
 
-# The DAG broke five times during the container migration, every time in the
-# same way: a rule was split, its output stopped being referenced by anything,
-# and Snakemake silently dropped it. No error - just fewer jobs. A dry run is
-# the only thing that surfaces that, and it costs seconds.
+# Dry-run the DAG: a split rule whose output nothing references is dropped by
+# Snakemake without an error, and only a dry run surfaces that.
 on:
   push:
     branches: [ main ]
@@ -67,9 +65,8 @@ jobs:
         run: |
           python - <<'PY'
           import glob, re, sys
-          # Snakemake formats the whole shell string, comments included, so a
-          # bare {placeholder} in a comment raises NameError at job-script
-          # build time - long after the DAG has resolved cleanly.
+          # Snakemake formats comments inside shell strings, so a bare {placeholder}
+          # there raises NameError at job-script build time.
           bad = []
           for f in glob.glob("workflow/rules/*.smk"):
               s = open(f).read()

@@ -1,15 +1,4 @@
-# ############################################################################
-# pre_process.smk — read trimming, decontamination, and pre-alignment QC
-#
-# Rules
-# -----
-#   bbtools_reformat      – interleave / normalize paired FASTQ
-#   fastp_trim            – adapter trimming and quality filtering
-#   kraken2_classify      - Kraken2 classification against the standard DB
-#   kraken2_decon         - subtractive host/phiX depletion by taxon
-#   krona_plot            - interactive Krona chart of the profile
-#   fastqc_pre            – per-sample FastQC (post-decon reads)
-# ############################################################################
+# pre_process.smk: read repair, trimming, Kraken2 depletion and pre-alignment QC.
 
 from os.path import join
 from scripts.common import allocated
@@ -18,19 +7,8 @@ from scripts.common import allocated
 # ── bbtools_reformat ──────────────────────────────────────────────────────────
 
 rule bbtools_reformat:
-    """
-    Repair + reformat paired FASTQ files with BBtools.
-
-    Step 1 (paired only): repair.sh — restores proper R1/R2 pairing when
-    the two files have mismatched read counts (common with clinical samples
-    or files that were processed separately upstream).
-
-    Step 2: reformat — normalises quality encoding, filters junk reads,
-    enforces min-length / quality caps.
-
-    @Input:  raw R1 / R2 fastq.gz symlinked into inputs/
-    @Output: repaired + reformatted R1 / R2 fastq.gz
-    """
+    """Repair mismatched R1/R2 pairing (paired only) and reformat FASTQ with BBtools,
+    normalising quality encoding and enforcing length and quality limits."""
     input:
         r1 = join(WORKPATH, "inputs", "{sample}.R1.fastq.gz"),
         r2 = join(WORKPATH, "inputs", "{sample}.R2.fastq.gz") if PAIRED else [],
@@ -63,7 +41,7 @@ if [ "{params.paired}" = "True" ]; then
     REPAIRED_R2="{params.tmpdir}/{wildcards.sample}.repaired.R2.fastq.gz"
     SINGLETONS="{params.tmpdir}/{wildcards.sample}.singletons.fastq.gz"
 
-    # Step 1 — repair mismatched R1/R2 read counts
+    # Step 1: repair mismatched R1/R2 read counts
     echo "[repair] Fixing pair order for {wildcards.sample}" >> "{log}" 2>&1
     bbtools repair \
         in1="{input.r1}" in2="{input.r2}" \
@@ -72,7 +50,7 @@ if [ "{params.paired}" = "True" ]; then
         repair=t overwrite=t \
         >> "{log}" 2>&1
 
-    # Step 2 — reformat / quality-normalise
+    # Step 2: reformat / quality-normalise
     echo "[reformat] Reformatting {wildcards.sample}" >> "{log}" 2>&1
     bbtools reformat {params.extra} \
         in1="$REPAIRED_R1" in2="$REPAIRED_R2" \
@@ -91,12 +69,7 @@ fi
 # ── fastp_trim ────────────────────────────────────────────────────────────────
 
 rule fastp_trim:
-    """
-    Adapter trimming and quality filtering with fastp.
-
-    @Input:  reformatted R1 / R2 from bbtools_reformat
-    @Output: trimmed R1 / R2, fastp JSON + HTML reports
-    """
+    """Adapter trimming and quality filtering with fastp."""
     input:
         r1 = rules.bbtools_reformat.output.r1,
         r2 = rules.bbtools_reformat.output.r2 if PAIRED else [],
@@ -142,36 +115,11 @@ fi
 
 
 # ── kraken2_classify / kraken2_decon / krona_plot ─────────────────────────────
-#
-# These three were a single rule while the pipeline ran on modules. A rule can
-# declare only one container, and no single image carries kraken2, python and
-# Krona, so the work is split along tool boundaries - which is also the
-# Snakemake idiom and how nf-core and RNA-seek organise theirs.
+# Split by tool because no single image carries kraken2, python and Krona.
 
 rule kraken2_classify:
-    """
-    Classify trimmed reads against the standard Kraken2 database.
-
-    On the 150 GB memory request, which looks wildly over-provisioned against
-    any single measurement and is not. --memory-mapping means kraken2 mmaps
-    hash.k2d rather than reading it into heap, so reported peak RSS is how much
-    of that ~97 GiB file became resident, which depends on how many distinct
-    hash buckets the reads touch and on the node's page-cache state - not on
-    how many reads there are. Measured peaks across four runs were 79, 80, 90,
-    92, 93, 93 and 94 GB, with no relation to input size: the single-end test
-    on 65 MB of reads used 79 GB, while a 512 MB run used 94 GB.
-
-    The worst case is the whole database resident, about 104 GB, so do not trim
-    this request toward an observed peak. Anything near 100 GB will OOM the
-    first time a run touches most of the database.
-
-    --memory-mapping is also what lets several samples on one node share those
-    pages through the page cache instead of each loading a private copy.
-
-    @Input:  trimmed reads from fastp_trim
-    @Output: Kraken2 report, plus per-read classifications (temp: several GB
-             at this depth, consumed only by kraken2_decon)
-    """
+    """Classify trimmed reads with Kraken2. Keep the 150 GB request: with memory mapping,
+    resident memory can approach the whole ~104 GB database regardless of input size."""
     input:
         r1 = rules.fastp_trim.output.r1,
         r2 = rules.fastp_trim.output.r2 if PAIRED else [],
@@ -215,24 +163,8 @@ fi
 
 
 rule kraken2_decon:
-    """
-    Deplete host / contaminant reads, and profile the library as received.
-
-    Depletion is subtractive by taxon: reads are removed only when Kraken2
-    assigned them inside the subtrees named in kraken2_decon_taxids - by
-    default Homo sapiens (9606), phiX (10847) and Bacteria (2). Reads that are
-    unclassified, or classified as viral, are always kept - the target virus is
-    in the database, so a "keep unclassified" filter would discard exactly the
-    reads this pipeline exists to analyse.
-
-    Bacteria are depleted rather than merely reported. They stay visible in the
-    composition table either way, since that profiles the library before any
-    depletion, so nothing is lost from the QC picture by removing them from the
-    reads that go on to alignment.
-
-    @Input:  Kraken2 report + per-read classifications, trimmed reads
-    @Output: depleted R1 / R2, depletion summary, pre-depletion composition
-    """
+    """Deplete reads inside the kraken2_decon_taxids subtrees (human, phiX and bacteria by
+    default), keeping unclassified and viral reads, and profile the library first."""
     input:
         r1         = rules.fastp_trim.output.r1,
         r2         = rules.fastp_trim.output.r2 if PAIRED else [],
@@ -293,18 +225,8 @@ fi
 
 
 rule krona_plot:
-    """
-    Interactive Krona chart of the pre-depletion Kraken2 profile.
-
-    The Krona biocontainer ships a placeholder taxonomy, so the database is
-    passed explicitly with -tax from our reference tree. Only taxonomy.tab
-    (~123 MB) is needed for a report-based import; the full Biowulf taxonomy
-    directory is 36 GB because of all.accession2taxid.sorted, which is not
-    used here.
-
-    @Input:  Kraken2 report from kraken2_classify
-    @Output: Krona HTML
-    """
+    """Interactive Krona chart of the pre-depletion Kraken2 profile, with an explicit
+    -tax taxonomy because the Krona image ships only a placeholder."""
     input:
         report = rules.kraken2_classify.output.report,
     output:
@@ -333,12 +255,7 @@ ktImportTaxonomy -tax "{params.tax}" -t 5 -m 3 \
 # ── fastqc_pre ────────────────────────────────────────────────────────────────
 
 rule fastqc_pre:
-    """
-    FastQC quality report on decontaminated reads.
-
-    @Input:  depleted R1 (and R2) from kraken2_decon
-    @Output: FastQC HTML + zip reports
-    """
+    """FastQC quality report on depleted reads."""
     input:
         r1 = rules.kraken2_decon.output.r1,
         r2 = rules.kraken2_decon.output.r2 if PAIRED else [],

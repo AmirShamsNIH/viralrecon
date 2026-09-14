@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-Cache sub-command: pull Singularity SIF images from Docker Hub locally.
-"""
+"""Cache sub-command: pull Singularity images from Docker Hub locally."""
 
 import json
 import os
@@ -44,15 +42,10 @@ def pull_images(sif_cache, uris_to_pull):
             err("Warning: failed to pull '{}': {}".format(uri, e))
 
 
-# ---------------------------------------------------------------------------
 # Entry-point called by the CLI
-# ---------------------------------------------------------------------------
 
 def cache(sub_args, repo_path):
-    """
-    Entry point for ``viralrecon cache``.
-    Pulls all Singularity images listed in config/containers.json.
-    """
+    """Entry point for `viralrecon cache`: pull every image in config/containers.json."""
     sif_cache = sub_args.sif_cache
     images_config = os.path.join(repo_path, 'config', 'containers.json')
 

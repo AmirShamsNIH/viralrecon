@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Minimal DAG check: build a throwaway run directory from the repo's own config
-# and ask Snakemake to resolve the graph. No tools run, nothing is downloaded,
-# so it works anywhere - which is the point: it catches the failure mode that
-# broke this pipeline repeatedly, where splitting a rule leaves its output
-# referenced by nothing and Snakemake silently omits it.
+# DAG check: resolve the graph in a throwaway run directory. No tools run, so it
+# catches rule outputs that nothing references, which Snakemake drops silently.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=$PWD
@@ -16,10 +13,8 @@ cp -r config/*  "$WORK/config/"
 cp -r resources/* "$WORK/resources/" 2>/dev/null || true
 
 SAMPLES=(TEST_S1 TEST_S2)
-# Two targets on purpose. TESTVIRUS exercises the generic path; SARS_NC_045512.1
-# matches lineage_targets and freyja_targets by substring, so pangolin,
-# nextclade and freyja enter the graph. Without a lineage target the whole
-# lineage stage is silently absent from this check.
+# Two targets: only SARS_NC_045512.1 gets a Nextclade dataset below, so both the
+# lineage path and the skip path enter the graph.
 TARGETS=(TESTVIRUS_NC_000001.1 SARS_NC_045512.1)
 
 # Inputs and reference files only have to exist; the DAG is resolved from

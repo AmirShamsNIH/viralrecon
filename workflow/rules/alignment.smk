@@ -1,12 +1,4 @@
-# ############################################################################
-# alignment.smk — map decontaminated reads to viral targets
-#
-# Rules
-# -----
-#   bowtie2_map      – align per-sample to each target, sort, mark-dup, add RG
-#   flagstat_align   – samtools flagstat on final BAM
-#   idxstats_align   – samtools idxstats on final BAM
-# ############################################################################
+# alignment.smk: map depleted reads to each target, mark duplicates and collect alignment QC.
 
 from os.path import join
 from scripts.common import allocated
@@ -15,32 +7,8 @@ from scripts.common import allocated
 # ── bowtie2_map ───────────────────────────────────────────────────────────────
 
 rule bowtie2_map:
-    """
-    Align depleted reads to a viral target with Bowtie2, coordinate-sort, drop
-    unmapped/secondary/supplementary records, optionally mark duplicates, and
-    add a read group.
-
-    Two things are deliberate here:
-
-    * The flagstat is taken *before* filtering. It is the only place the true
-      library mapping rate is visible; once unmapped records are dropped every
-      downstream flagstat reads ~100% mapped. MultiQC is told to ignore it (see
-      multiqc_ignore) so it does not appear as a second sample.
-    * Duplicate marking is off by default. On a deep amplicon/enriched viral
-      library nearly every read is a duplicate by position (98%+ observed here)
-      and FreeBayes is run with --use-duplicate-reads, so the pass costs a full
-      Picard traversal to produce a flag nothing acts on. Set
-      skip_markduplicates=false to re-enable it.
-
-    A sample whose mapped-read count falls below min_mapped_reads is flagged in
-    the log and via a .qc_warn marker that reaches run_summary.tsv. It is not
-    failed: one weak sample should not abort a whole run, and the consensus is
-    depth-masked anyway.
-
-    @Input:  depleted R1/R2 and target Bowtie2 index from ref_db/
-    @Output: filtered (optionally dup-marked) sorted BAM + index, pre-filter
-             flagstat, duplicate metrics
-    """
+    """Align depleted reads to a target with Bowtie2, sort, and drop unmapped, secondary
+    and supplementary records. The raw flagstat is taken before that filter."""
     input:
         r1  = join(WORKPATH, "{sample}", "pre_process",
                    "{sample}.kraken2_decon.R1.fastq.gz"),
@@ -124,25 +92,8 @@ rm -f "{params.tmpbam}" "{params.tmpbam}.bai"
 # ── mark_duplicates ───────────────────────────────────────────────────────────
 
 rule mark_duplicates:
-    """
-    Optionally mark PCR duplicates, and produce the canonical alignment BAM.
-
-    This rule always runs, so that everything downstream can depend on one
-    filename regardless of configuration; what varies is whether Picard is
-    invoked. With skip_markduplicates=true (the default, matching nf-core) the
-    filtered BAM is hard-linked through and an empty metrics file is written.
-
-    Marking is off by default because on a deep amplicon or enriched viral
-    library nearly every read is a duplicate by position - 98.3% observed on
-    this assay - and FreeBayes runs with --use-duplicate-reads, so the pass
-    costs a full Picard traversal to produce a flag nothing acts on.
-
-    Picard needs a JVM, which the bowtie2 image does not carry, so this is a
-    separate rule rather than a branch inside bowtie2_map.
-
-    @Input:  filtered BAM from bowtie2_map
-    @Output: canonical {sample}.{target}.bowtie2_map.bam + index + metrics
-    """
+    """Produce the canonical alignment BAM, marking duplicates only when
+    skip_markduplicates=false (off by default: nearly every viral read is a duplicate)."""
     input:
         bam = rules.bowtie2_map.output.bam,
         bai = rules.bowtie2_map.output.bai,
@@ -191,12 +142,7 @@ fi
 # ── flagstat_align ────────────────────────────────────────────────────────────
 
 rule flagstat_align:
-    """
-    samtools flagstat on the final aligned BAM.
-
-    @Input:  duplicate-marked BAM from bowtie2_map
-    @Output: flagstat text file
-    """
+    """samtools flagstat on the final aligned BAM."""
     input:
         bam = rules.mark_duplicates.output.bam,
     output:
@@ -223,12 +169,7 @@ samtools flagstat --threads {threads} "{input.bam}" > "{output.stat}" 2>> "{log}
 # ── idxstats_align ────────────────────────────────────────────────────────────
 
 rule idxstats_align:
-    """
-    samtools idxstats on the final aligned BAM.
-
-    @Input:  duplicate-marked BAM + BAI from bowtie2_map
-    @Output: idxstats TSV
-    """
+    """samtools idxstats on the final aligned BAM."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
@@ -256,12 +197,7 @@ samtools idxstats "{input.bam}" > "{output.stat}" 2>> "{log}"
 # ── mosdepth_align ───────────────────────────────────────────────────────────
 
 rule mosdepth_align:
-    """
-    Per-base and windowed coverage depth with mosdepth.
-
-    @Input:  duplicate-marked BAM from bowtie2_map
-    @Output: mosdepth summary, per-base bed.gz, global dist
-    """
+    """Per-base and windowed coverage depth with mosdepth."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
@@ -272,9 +208,7 @@ rule mosdepth_align:
                         "mosdepth", "{sample}.{target}.mosdepth.global.dist.txt"),
         per_base = join(WORKPATH, "{sample}", "alignment", "{target}",
                         "mosdepth", "{sample}.{target}.per-base.bed.gz"),
-        # --by 200 windows: MultiQC's mosdepth module renders these as the
-        # coverage-across-genome plot, which is what nf-core produces with a
-        # bespoke R script.
+        # --by 200 windows feed the MultiQC coverage-across-genome plot.
         regions  = join(WORKPATH, "{sample}", "alignment", "{target}",
                         "mosdepth", "{sample}.{target}.regions.bed.gz"),
     params:
@@ -304,12 +238,7 @@ mosdepth {params.extra} --threads {threads} \
 # ── picard_collect_metrics ────────────────────────────────────────────────────
 
 rule picard_collect_metrics:
-    """
-    Picard CollectMultipleMetrics: insert size, alignment summary, GC bias.
-
-    @Input:  duplicate-marked BAM + reference FASTA
-    @Output: insert-size metrics/histogram, alignment summary, GC-bias metrics
-    """
+    """Picard CollectMultipleMetrics: insert size, alignment summary, GC bias."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
@@ -341,12 +270,8 @@ rule picard_collect_metrics:
 set -euo pipefail
 mkdir -p "$(dirname "{output.insert_metrics}")"
 
-# Picard's behaviour on a BAM with few or no aligned reads is not uniform:
-# with no *paired* mapped reads it exits 0 but silently skips the insert-size
-# outputs, and with no mapped reads at all it exits non-zero. Both happen
-# legitimately in a multi-target run - a library barely maps to a divergent
-# reference - so neither should take the run down. The declared outputs are
-# touched either way, and the failure is recorded rather than propagated.
+# Picard skips or fails on BAMs with few or no mapped reads, which is normal in a
+# multi-target run, so outputs are touched and the failure is logged, not raised.
 if ! picard CollectMultipleMetrics {params.extra} \
     I="{input.bam}" O="{params.prefix}" R="{input.fa}" \
     PROGRAM=CollectAlignmentSummaryMetrics \

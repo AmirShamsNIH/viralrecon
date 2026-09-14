@@ -1,30 +1,6 @@
 #!/usr/bin/env python3
-"""
-plot_report_figures.py
-──────────────────────
-Static figures for final_report, for readers who will not open IGV.
-
-Four pictures per target, each answering a different question:
-
-  1. genome_overview.<sample>.png  what does this one sample look like across
-                                   the genome - depth, where it is masked, and
-                                   where its variants sit
-  2. variant_heatmap.png           the whole run on one page - which variants
-                                   are fixed, which are minor, which samples
-                                   share them
-  3. coverage_comparison.png       every sample's depth on one axis, so a weak
-                                   library is obvious against its peers
-  4. composition.png               what each library was made of, which is
-                                   usually why coverage is what it is
-
-Everything is drawn from files the pipeline already writes. Nothing here
-computes a result; if a figure disagrees with run_summary.tsv, the figure is
-wrong.
-
-Deliberately matplotlib-only: no pandas. The inputs are small TSVs that the
-csv module reads fine, and dropping pandas meant these figures could run in an
-image the pipeline already pins rather than needing a new one.
-"""
+"""Static final_report figures per target: genome overview, variant heatmap, coverage
+comparison and composition, drawn only from files the pipeline already wrote."""
 
 import argparse
 import csv
@@ -61,13 +37,8 @@ def read_tsv(path):
 
 
 def mosdepth_per_base(path):
-    """
-    (positions, depths) from a mosdepth per-base BED.
-
-    mosdepth emits runs, not per-position rows, so each interval is expanded to
-    its midpoint carrying that depth. For a 30 kb viral genome that is a few
-    thousand points - enough for a faithful curve without plotting every base.
-    """
+    """(positions, depths) from a mosdepth per-base BED, one point per interval
+    midpoint."""
     if not exists(path):
         return np.array([]), np.array([])
     xs, ys = [], []
@@ -103,13 +74,8 @@ def lowcov_intervals(path):
 
 
 def matrix_rows(path, samples):
-    """
-    Variant matrix rows as (pos, gene, aa, impact, {sample: pct}).
-
-    Reads the filtered matrix, which is the reportable set. Cells left blank by
-    make_variants_matrix mean "not called in that sample" and stay absent here
-    rather than becoming zero - the same distinction the matrix itself keeps.
-    """
+    """Variant matrix rows as (pos, gene, aa, impact, {sample: pct}). Blank cells mean
+    not called and stay absent rather than zero."""
     rows = []
     for r in read_tsv(path):
         try:
@@ -156,9 +122,7 @@ def fig_genome_overview(sample, target, work, outdir, rows, glen, min_depth):
     ax.fill_between(xs, floor, np.maximum(ys, floor), color="#3498db",
                     alpha=0.55, linewidth=0)
     ax.set_yscale("log")
-    # Start near the depth threshold rather than at 1. A log axis anchored at 1
-    # spends most of its height on depths this run never reaches, which flattens
-    # the part a reader actually needs to see.
+    # Start near the depth threshold, not 1, so the axis covers depths actually reached.
     ax.set_ylim(floor, max(np.max(ys) * 1.6, floor * 10))
     ax.set_ylabel("depth (log)")
     ax.set_title("%s  vs  %s" % (sample, target), loc="left", fontsize=11)
@@ -219,10 +183,8 @@ def fig_genome_overview(sample, target, work, outdir, rows, glen, min_depth):
 def fig_variant_heatmap(samples, target, outdir, rows):
     if not rows:
         return None
-    # Starts at white so a low percentage reads as near-empty, and "not called"
-    # is a mid grey rather than a paler blue - the two must not be confusable,
-    # since one means "looked and found almost nothing" and the other means
-    # "this site was not called here at all".
+    # Starts at white so a low percentage reads as near-empty; "not called" is grey so
+    # it cannot be mistaken for a low percentage.
     cmap = LinearSegmentedColormap.from_list(
         "af", ["#ffffff", "#9ecae1", "#3182bd", "#08306b"])
 
@@ -297,25 +259,8 @@ def fig_coverage_comparison(samples, target, work, outdir, glen, min_depth):
 # ── figure 4: library composition ───────────────────────────────────────────
 
 def fig_composition(samples, work, outdir, target_taxids):
-    """
-    Library composition per sample, read straight from each sample's Kraken2
-    composition TSV.
-
-    Deliberately not from run_summary.tsv, even though the same fractions are
-    there: run_summary is written by final_report, and final_report waits on
-    these figures, so reading it here made the DAG cyclic. Taking the numbers
-    from the per-sample files keeps the figures independent of the report that
-    collects them.
-
-    The categories have to be derived rather than stacked as-is. pct_viral is
-    taxid 10239, the whole Viruses superkingdom, which *contains* the target
-    virus - stacking both double-counts and produced bars summing to 177%.
-    pct_depleted is not a slice of composition at all but the share of reads
-    depletion removed, so it is shown as a separate marker rather than a band.
-
-    Low coverage is far more often a composition problem than an alignment one,
-    which is what makes this the figure that usually explains a weak sample.
-    """
+    """Library composition per sample from the Kraken2 composition TSVs (run_summary
+    would make the DAG cyclic). The target is split out of Viruses, not counted twice."""
     per = {}
     for s_ in samples:
         comp = join(work, s_, "pre_process", "kraken2",

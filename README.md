@@ -35,7 +35,7 @@ scripts per project, is where reproducibility is usually lost.
 **viralrecon** answers all three in one pass. It takes raw Illumina FASTQ files and a
 set of reference accessions, and produces per-sample consensus genomes, annotated
 variant calls (including sub-consensus, intra-host variants), contamination profiles,
-and clade assignments — with a single directory a user is meant to open first.
+and clade assignments, with a single directory a user is meant to open first.
 
 Two design commitments make its results reproducible:
 
@@ -46,7 +46,7 @@ Two design commitments make its results reproducible:
   dataset, like Nextclade, where a floating version silently changes clade
   assignments.
 - **The pipeline is virus-agnostic.** No rule assumes a particular virus. Everything that
-  differs between viruses — the FASTA, the annotation, the taxid, the Nextclade dataset —
+  differs between viruses (the FASTA, the annotation, the taxid, the Nextclade dataset)
   is data recorded on the reference, so adding a virus is a `viralrecon build`, not a code
   change. Targets are selected by accession, never by name, and a run may carry several
   unrelated viruses at once; every post-alignment file is namespaced `{sample}.{target}.*`
@@ -70,11 +70,11 @@ Stages run in the order below. `lineage` is optional.
 | 3 | **alignment** | Map to each target, QC the mapping | [Bowtie2][6] · [samtools][7] · [Picard][8] · [mosdepth][9] |
 | 4 | **variant_calling** | Call, normalise, annotate, build consensus | [FreeBayes][10] · [bcftools][7] · [SnpEff/SnpSift][11] · [GATK4][12] |
 | 5 | **report** | Aggregate across samples, assemble `final_report/` | bcftools · GATK4 · [QUAST][13] · [MultiQC][14] |
-| — | **lineage** *(opt.)* | Clade assignment | [Nextclade][15] |
+| - | **lineage** *(opt.)* | Clade assignment | [Nextclade][15] |
 
 #### Quality control and decontamination
 
-- **BBTools `reformat`** repairs the raw pairs first — junk bases, IUPAC codes, broken
+- **BBTools `reformat`** repairs the raw pairs first: junk bases, IUPAC codes, broken
   reads, and out-of-range quality scores are fixed or dropped before anything reads them.
   It does *not* tolerate a truncated `.gz`; a failure here means the input transfer, not
   the data.
@@ -85,8 +85,8 @@ Stages run in the order below. `lineage` is optional.
   that profile as an interactive HTML chart.
 - **Depletion is subtractive by taxon**, not "keep everything unclassified": reads
   assigned anywhere in the subtree of `9606` (human), `10847` (phiX), or `2` (bacteria)
-  are removed, and everything else — including unclassified reads, which is where a novel
-  or divergent virus lives — is kept. Taxids are configurable.
+  are removed, and everything else, including unclassified reads, which is where a novel
+  or divergent virus lives, is kept. Taxids are configurable.
 - **FastQC** runs on the depleted reads, and a single project-wide **MultiQC** report
   aggregates every stage across every sample into `final_report/multiqc/`.
 
@@ -94,7 +94,7 @@ Stages run in the order below. `lineage` is optional.
 
 - **Bowtie2** (`--local`) maps the depleted reads to each target independently. A target
   whose mapping falls below `min_mapped_reads` raises a QC warning and its downstream
-  stages are skipped — **it does not fail the run**, so one weak reference cannot sink a
+  stages are skipped; **it does not fail the run**, so one weak reference cannot sink a
   multi-target analysis.
 - **samtools** filters unmapped, secondary, and supplementary alignments; **Picard**
   collects insert-size and alignment metrics; **mosdepth** produces per-base and windowed
@@ -105,7 +105,7 @@ Stages run in the order below. `lineage` is optional.
   0.02` surfaces intra-host minor variants that a genotype-based caller would discard.
 - **bcftools norm** splits multi-allelic records; **SnpEff** and **SnpSift** annotate;
   **GATK4** flattens calls into a table, which is emitted in two shapes: a long table
-  (one row per sample x variant, for scripting) and a **variant x sample matrix** — one
+  (one row per sample x variant, for scripting) and a **variant x sample matrix**: one
   row per variant with an allele-depth and percentage column per sample, plus parsed
   effect, severity, gene and amino-acid change. The matrix is what shows at a glance
   whether a variant is fixed across the run or a minor allele in a few samples; an empty
@@ -114,15 +114,15 @@ Stages run in the order below. `lineage` is optional.
   `variants_matrix.raw.tsv` and `variants_matrix.filtered.tsv`. The filtered set applies
   the SnpSift expression and is the one to report; the raw set is what FreeBayes called
   under its own thresholds, and is what answers "was this variant never called, or called
-  and then filtered out?" — a question the filtered table alone cannot distinguish.
+  and then filtered out?", a question the filtered table alone cannot distinguish.
 - **Consensus is depth-masked.** Positions below `consensus_min_depth` are written as `N`
-  rather than inheriting the reference base — without this, a consensus fabricates
+  rather than inheriting the reference base; without this, a consensus fabricates
   reference sequence in regions with no evidence.
 
 #### Lineage
 
 Clade assignment is done by **[Nextclade][15]**, and it works for any virus that has a
-Nextclade dataset — `sars-cov-2`, `mpox`, `rsv_a`, `flu_h1n1pdm_ha` and many
+Nextclade dataset: `sars-cov-2`, `mpox`, `rsv_a`, `flu_h1n1pdm_ha` and many
 more (`nextclade dataset list`).
 
 - **The dataset belongs to the reference, not the run.** Fetch it at build time with
@@ -135,7 +135,7 @@ more (`nextclade dataset list`).
 - **Pick the dataset that matches what was sequenced.** QC is scored against the
   dataset's reference tree. In validation, six JN.1-lineage samples (clade 24A) scored
   `mediocre`/`bad` against the Wuhan-rooted `sars-cov-2` dataset and `good` against the
-  BA.2.86-rooted one — same clade, same data. Ancestral samples go the other way: clade
+  BA.2.86-rooted one: same clade, same data. Ancestral samples go the other way: clade
   19B reads as `outgroup` against a BA.2.86-rooted tree.
 
 ### 2.2 Dependencies
@@ -151,7 +151,7 @@ R2 file is present, not configured. Single-end has been verified against the sam
 samples run paired: identical clade calls and fixed markers, and sub-consensus
 frequencies within about a point, at proportionally lower depth.
 
-Nothing else is needed locally — every tool is containerised.
+Nothing else is needed locally; every tool is containerised.
 
 ### 2.3 Containers
 
@@ -163,8 +163,8 @@ platform and writes every image against one of them:
 | `{shared}` | a read-only library maintained by someone else |
 | `{ours}` | images we pull or build for this pipeline |
 
-Only the roots change between platforms; the image file names — which are the version
-pins of record — are written once and cannot drift apart per platform. On Biowulf the
+Only the roots change between platforms; the image file names, which are the version
+pins of record, are written once and cannot drift apart per platform. On Biowulf the
 roots are `/data/OpenOmics/SIFs` and `/data/RTB_GRS/references/singularity`. A root may
 contain `{repo_parent}`, which expands to the directory holding the clone, so a cluster
 with no institutional reference tree keeps its images beside the checkout.
@@ -178,7 +178,7 @@ which cluster it is on.
 
 A Snakemake rule may declare only **one** container, so a step chaining tools from
 different images is split into one rule per tool. When adding a rule, give it a
-`container:` directive — never a module.
+`container:` directive, never a module.
 
 ### 2.4 Installation
 
@@ -202,7 +202,7 @@ runtime.
 | need | detail |
 |---|---|
 | Biowulf account | with access to `/data/RTB_GRS` |
-| SLURM partition | `norm` — the only partition `cluster.json` uses |
+| SLURM partition | `norm`, the only partition `cluster.json` uses |
 | Shared references | read access to `/data/OpenOmics/SIFs` |
 
 **Software on the submitting shell**
@@ -211,7 +211,7 @@ runtime.
 module load python/3.10        # provides snakemake 7.30.1
 ```
 
-Snakemake is the one tool that does *not* come from a container — it is the
+Snakemake is the one tool that does *not* come from a container; it is the
 thing that launches the containers. The master job inherits the submitting
 environment, so if `snakemake` is not on your `PATH` when you submit, the master
 job fails immediately. Everything else is loaded by the job itself: the master
@@ -226,13 +226,13 @@ script runs `module load singularity` and no rule loads anything at all.
 | `/data/OpenOmics/SIFs` | shared lab image library |
 | `/data/RTB_GRS/references/singularity` | images built or pulled for this pipeline |
 
-**Which node does what** — this trips people up, because the two capabilities
+**Which node does what**: this trips people up, because the two capabilities
 live on opposite hosts:
 
 | task | where | why |
 |---|---|---|
 | `viralrecon build` | **compute node** (`sbatch`) | needs `singularity`, which the login node does not have |
-| `viralrecon run` | either — it only submits | the master job it creates runs on a compute node |
+| `viralrecon run` | either; it only submits | the master job it creates runs on a compute node |
 | `git push` | **login node** | compute nodes cannot resolve external hostnames at all |
 
 Compute nodes have no direct internet. `viralrecon build` downloads a reference
@@ -297,8 +297,8 @@ one directory with the references beside the checkout:
 |---|---|---|
 | SLURM partition | `norm` | `all` (also `himem`, 4 TB × 2, and `gpu`) |
 | `singularity` | compute nodes only | submit **and** compute nodes |
-| Internet | login node only; proxy for HTTP | everywhere, including compute nodes — **no proxy needed** |
-| Snakemake | `module load python/3.10` | no module — see below |
+| Internet | login node only; proxy for HTTP | everywhere, including compute nodes, **no proxy needed** |
+| Snakemake | `module load python/3.10` | no module (see below) |
 | Node-local scratch | `/lscratch/$SLURM_JOB_ID` | none; `/tmp` is mounted **noexec** |
 | Kraken2 database | `/fdb/kraken/20260226_standard_kraken2` | `/data/rml_ngs/kraken_db/K2/k2_standard` |
 | Krona taxonomy | `/data/RTB_GRS/references/krona/taxonomy` | `/data/rml_ngs/ngs_dbs/krona/taxonomy` |
@@ -332,7 +332,7 @@ apptainer pull image.sif docker://quay.io/biocontainers/<tool>:<tag>
 ```
 
 Without those two variables the pull fails deep inside proot with
-`mksquashfs: No such file or directory` — the real cause is that `/tmp` is
+`mksquashfs: No such file or directory`; the real cause is that `/tmp` is
 mounted `noexec`, and apptainer falls back to proot because there is no setuid
 starter and no `/etc/subuid` entry (so `--fakeroot` is unavailable, exactly as on
 Biowulf).
@@ -354,7 +354,7 @@ export PATH=/data/rml_ngs/viralrecon/bin:/data/rml_ngs/viralrecon/sm_venv/bin:$P
 ```
 
 **Scratch.** `$OUTDIR/tmp` on GPFS is used for everything, as on Biowulf, so no
-`--gres=lscratch` is needed — which is just as well, since BigSky has no
+`--gres=lscratch` is needed, which is just as well, since BigSky has no
 `/lscratch`.
 
 ## 3. Run the pipeline
@@ -377,11 +377,11 @@ dataset lands in `<reference>/nextclade/` and its path is recorded in `genome.js
                    --nextclade-dataset sars-cov-2
 ```
 
-Names come from `nextclade dataset list` — `sars-cov-2`, `mpox`, `rsv_a`,
+Names come from `nextclade dataset list`: `sars-cov-2`, `mpox`, `rsv_a`,
 `flu_h1n1pdm_ha` and others. On Biowulf this step needs the proxy set (§2.5); BigSky
 reaches the internet directly.
 
-Record curated knowledge about a reference — the kind nothing can be derived from the
+Record curated knowledge about a reference: the kind nothing can be derived from the
 files themselves. The note is stored in `genome.json`, echoed whenever a run selects that
 target, and carried forward across rebuilds unless given again:
 
@@ -390,7 +390,7 @@ target, and carried forward across rebuilds unless given again:
                    --notes "contains long N runs; do not use for consensus"
 ```
 
-Provide your own sequence instead of downloading from NCBI — mutually exclusive with a
+Provide your own sequence instead of downloading from NCBI, mutually exclusive with a
 bare `--accession` download:
 
 ```bash
@@ -416,7 +416,7 @@ Preview the DAG without submitting anything:
 ```
 
 After editing a config template in the repo, refresh it into an existing output
-directory — `config/` is copied once and does not otherwise refresh:
+directory; `config/` is copied once and does not otherwise refresh:
 
 ```bash
 ./viralrecon run -i ... -o ... --genome ... --overwrite-pipeline-template
@@ -431,7 +431,7 @@ Pass `--platform BIGSKY` to both `build` and `run` on BigSky; Biowulf is the def
 |---|---|
 | `config/config.json` | Pipeline options and every tool parameter |
 | `config/cluster.json` | Per-rule SLURM resources |
-| `config/genome.json` | Template only — the real registry is `<build --output>/genome.json` |
+| `config/genome.json` | Template only; the real registry is `<build --output>/genome.json` |
 | `config/containers.json` | Singularity image paths |
 
 Frequently adjusted keys:
@@ -451,7 +451,7 @@ Nextclade has no list: it runs on whichever targets carry a `nextclade_dataset` 
 ## 4. Output
 
 Everything a reader needs is in `final_report/`. The rest of the run directory is
-intermediate — kept for debugging, not for reading.
+intermediate, kept for debugging, not for reading.
 
 ```
 final_report/
@@ -469,9 +469,9 @@ final_report/
 
 Outputs fall into five categories. Read them in this order.
 
-### 4.1 Start here — the one-page answer
+### 4.1 Start here: the one-page answer
 
-**`run_summary.tsv`** — one row per sample × target, and the only file most runs need.
+**`run_summary.tsv`**: one row per sample × target, and the only file most runs need.
 Nineteen columns grouped as:
 
 | group | columns | reads as |
@@ -487,7 +487,7 @@ Nineteen columns grouped as:
 **`qc_status` is the column to scan first.** `WARN:LOW_GENOME_COVERAGE`,
 `WARN:LOW_MAPPED_READS`, `WARN:NEXTCLADE_FAILED` and friends say exactly which check failed,
 and several reasons combine with `+`. A stage that was *skipped* rather than *failed*
-never appears here — see §4.6.
+never appears here (see §4.6).
 
 Two units differ and it matters: `input_read_pairs` counts **pairs** (Kraken2 classifies a
 pair as one unit) while `mapped_reads` comes from flagstat and counts **individual reads**,
@@ -495,26 +495,26 @@ so expect roughly double on paired data. `mapped_reads`/`mapped_pct` are measure
 unmapped records are filtered, so they describe the library; `reads_used` is what actually
 reached variant calling.
 
-### 4.2 Pictures — `{target}/figures/` and `igv_report.{target}.html`
+### 4.2 Pictures: `{target}/figures/` and `igv_report.{target}.html`
 
 For readers who will not open a genome browser. Four static figures per target:
 
 | file | answers |
 |---|---|
-| `variant_heatmap.png` | **the whole run on one page** — variants down, samples across, cell = alt %, **grey = not called** (never 0) |
+| `variant_heatmap.png` | **the whole run on one page**: variants down, samples across, cell = alt %, **grey = not called** (never 0) |
 | `genome_overview.{sample}.png` | one sample across the genome: depth (log), masked regions shaded red, variant needles by allele fraction and coloured by snpEff impact |
 | `coverage_comparison.png` | every sample's depth on one axis, so a weak library stands out |
-| `composition.png` | what each library was made of — target virus / other viral / human / other |
+| `composition.png` | what each library was made of: target virus / other viral / human / other |
 
 `composition.png` is usually the one that explains a bad sample: low coverage is far more
 often a library-composition problem than an alignment problem.
 
-**`igv_report.{target}.html`** is a self-contained interactive report — an embedded
+**`igv_report.{target}.html`** is a self-contained interactive report, an embedded
 `igv.js` browser with the reference, variants and the read pileups around each site baked
 into the file. Unlike `igv_session.{target}.xml`, it needs neither an IGV installation
 nor access to the run directory, so it can simply be emailed.
 
-### 4.3 The genomes — `{target}/consensus/`
+### 4.3 The genomes: `{target}/consensus/`
 
 | file | what it is |
 |---|---|
@@ -522,11 +522,11 @@ nor access to the run directory, so it can simply be emailed.
 | `all_samples.{target}.consensus.fa` | all samples concatenated, ready for a tree or an upload |
 
 Positions below `consensus_min_depth` are written as `N` rather than inheriting the
-reference base. An `N` therefore means *no evidence here*, not *matches the reference* —
+reference base. An `N` therefore means *no evidence here*, not *matches the reference*:
 the distinction that keeps a consensus from fabricating sequence. `consensus_masked_bases`
 in the summary counts them.
 
-### 4.4 What differs from the reference — `{target}/variants/`
+### 4.4 What differs from the reference: `{target}/variants/`
 
 Same calls, four shapes, for four different questions:
 
@@ -546,7 +546,7 @@ POS    TYPE   GENE    AA_CHANGE  EFFECT            S1.AD    S1.PCT   S2.AD    S2
 ```
 
 `AD` is `ref,alt` read counts; `PCT` is the alt percentage. **An empty cell means the
-variant was not called in that sample** — deliberately left blank rather than `0`, because
+variant was not called in that sample**, deliberately left blank rather than `0`, because
 `0` would claim the site was examined and found reference. Annotation columns (`EFFECT`,
 `SEVERITY`, `GENE`, `HGVS_C`, `HGVS_P`, `AA_CHANGE`) come from snpEff's highest-ranked
 annotation; `AA_CHANGE` gives the short form (`Q6249H`) for substitutions and is blank for
@@ -555,26 +555,26 @@ indels and frameshifts, which defer to `HGVS_P`.
 Raw versus filtered is not a formality: the SnpSift filter typically removes most calls,
 and the pair is what lets you tell a genuinely absent variant from a filtered one.
 
-### 4.5 What clade it is — `{target}/lineage/`
+### 4.5 What clade it is: `{target}/lineage/`
 
 Present only for targets whose reference carries a Nextclade dataset (see §4.7).
 
 | file | gives |
 |---|---|
-| `lineage_summary.tsv` | **clade, QC and coverage per sample — read this one** |
+| `lineage_summary.tsv` | **clade, QC and coverage per sample; read this one** |
 | `{sample}.{target}.nextclade.tsv` | full Nextclade output: clade, QC breakdown, mutation list |
 
 Read `nextclade_qc` beside the clade. On a well-covered sample, `mediocre` or `bad` most
 often means the dataset does not match what was sequenced rather than a problem with the
-sample — check the clade against a dataset rooted closer to it before distrusting the
+sample; check the clade against a dataset rooted closer to it before distrusting the
 data (see *Lineage* in §2.1). `nextclade_coverage` is the fraction of the dataset's
 reference the consensus covers.
 
-### 4.6 Whether to believe it — `{target}/qc/` and `multiqc/`
+### 4.6 Whether to believe it: `{target}/qc/` and `multiqc/`
 
 | file | tells you |
 |---|---|
-| `{sample}.kraken2_decon.krona.html` | **what was in the library** — interactive, open in a browser |
+| `{sample}.kraken2_decon.krona.html` | **what was in the library**: interactive, open in a browser |
 | `{sample}.kraken2_decon.composition.tsv` | the same as a table; a low on-target fraction explains low coverage |
 | `{sample}.{target}.mosdepth.summary.txt` | depth across the reference |
 | `{sample}.{target}.lowcov_mask.bed` | exactly which positions were masked `N` |
@@ -586,32 +586,32 @@ When a sample looks wrong, the Krona chart usually explains it: low coverage is 
 often a library-composition problem than an alignment problem.
 
 `igv_session.{target}.xml` opens all BAMs, VCFs and consensus sequences against the
-reference in IGV — the fastest way to eyeball a specific variant.
+reference in IGV, the fastest way to eyeball a specific variant.
 
 ### 4.7 Skipped is not failed
 
 An absent output can mean a stage did not apply, which is not a warning:
 
-- **No `lineage/` directory** — the reference carries no Nextclade dataset. Register one
+- **No `lineage/` directory**: the reference carries no Nextclade dataset. Register one
   with `viralrecon build --nextclade-dataset` if a dataset exists for that virus.
-- **A target missing downstream stages entirely** — mapping fell below `min_mapped_reads`,
+- **A target missing downstream stages entirely**: mapping fell below `min_mapped_reads`,
   and `qc_status` says `LOW_MAPPED_READS`. One weak reference does not stop the others.
 
 A stage that *ran and failed* always shows in `qc_status` and in the log tally at the end
 of `final_report.log`. Empty directories are avoided precisely because they read as
 failure.
 
-### 4.8 Run provenance — the rest of the run directory
+### 4.8 Run provenance: the rest of the run directory
 
 | path | purpose |
 |---|---|
 | `RUNNING` / `COMPLETED` / `FAILED` | state as a sentinel file, so a check never parses a log |
-| `job_information_<ts>.tsv` | requested vs peak CPU and memory per job (`jobby`) — the basis for tuning `cluster.json` |
+| `job_information_<ts>.tsv` | requested vs peak CPU and memory per job (`jobby`), the basis for tuning `cluster.json` |
 | `failed_jobs_<ts>.tsv` | just the failures from the above |
 | `logfiles/` | per-rule logs; `master.log` is the full Snakemake driver record, `master.err` holds failures only and stays empty on success |
 | `workflow/`, `config/` | the exact code and parameters that produced this run |
 
-Both are copied in deliberately, so a run is self-describing — but they refresh
+Both are copied in deliberately, so a run is self-describing, but they refresh
 differently. `workflow/` is re-copied from the repo on every launch, so code fixes reach an
 existing run directory; a changed helper script reruns the rules that use it. `config/` is
 copied once so per-run edits survive, which means a new config key does **not** reach an
@@ -623,7 +623,7 @@ existing run directory until you pass `--overwrite-pipeline-template`.
 
 1. Fork the repository.
 2. Create a feature branch.
-3. Make your changes — give any new rule a `container:` directive, never `module load`.
+3. Make your changes: give any new rule a `container:` directive, never `module load`.
 4. Run `.tests/dryrun.sh` to confirm the DAG still resolves. **This is not optional:** a
    container split can silently orphan a rule, and the DAG omits it with no error.
 5. Open a pull request.
@@ -632,7 +632,7 @@ existing run directory until you pass `--overwrite-pipeline-template`.
 
 ## 6. References
 
-<sup>1.</sup> Köster, J. & Rahmann, S. *Snakemake — a scalable bioinformatics workflow engine.* Bioinformatics (2012).
+<sup>1.</sup> Köster, J. & Rahmann, S. *Snakemake: a scalable bioinformatics workflow engine.* Bioinformatics (2012).
 <sup>2.</sup> Chen, S. *et al.* *fastp: an ultra-fast all-in-one FASTQ preprocessor.* Bioinformatics (2018).
 <sup>3.</sup> Wood, D. E. *et al.* *Improved metagenomic analysis with Kraken 2.* Genome Biology (2019).
 <sup>4.</sup> Ondov, B. D. *et al.* *Interactive metagenomic visualization in a web browser.* BMC Bioinformatics (2011).

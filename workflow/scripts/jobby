@@ -1,46 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
-"""
-ABOUT: 
-    `jobby` will take your past jobs and display their job information.
-    Why? We have pipelines running on several different clusters and 
-    job schedulers. `jobby` is an attempt to centralize and abstract
-    the process of querying different job schedulers. On each supported
-    target system, `jobby` will attempt to determine the best method for 
-    getting job information to return to the user in a standardized 
-    format and unified cli.  
-
-REQUIRES:
-  - python>=3.5
-
-DISCLAIMER:
-                        PUBLIC DOMAIN NOTICE
-            NIAID Collaborative Bioinformatics Resource (NCBR)
-
-       National Institute of Allergy and Infectious Diseases (NIAID)
-    This software/database is a "United  States Government Work" under
-    the terms of the United  States Copyright Act.  It was written as 
-    part of the author's official duties as a United States Government
-    employee and thus cannot be copyrighted. This software is freely
-    available to the public for use.
-    
-    Although all  reasonable  efforts have been taken  to ensure  the
-    accuracy and reliability of the software and data, NCBR do not and
-    cannot warrant the performance or results that may  be obtained by 
-    using this software or data. NCBR and NIH disclaim all warranties,
-    express  or  implied,  including   warranties   of   performance, 
-    merchantability or fitness for any particular purpose.
-    
-    Please cite the author and NIH resources like the "Biowulf Cluster" 
-    in any work or product based on this material.
-
-USAGE:
-  $ jobby [OPTIONS] JOB_ID [JOB_ID ...]
-
-EXAMPLE:
-  $ jobby 18627545 15627516 58627597 
-"""
+"""jobby: display past job information across schedulers. From NIAID NCBR (OpenOmics),
+a public-domain United States Government Work. Usage: jobby [OPTIONS] JOB_ID [JOB_ID ...]"""
 
 # Python standard library
 from __future__ import print_function, division
@@ -61,10 +23,8 @@ _description = 'Will take your job(s)... and display their information!'
 
 # Classes
 class Colors():
-    """Class encoding for ANSI escape sequeces for styling terminal text.
-    Any string that is formatting with these styles must be terminated with
-    the escape sequence, i.e. `Colors.end`.
-    """
+    """ANSI escape sequences for styling terminal text; end a styled string with
+    Colors.end."""
     # Escape sequence
     end = '\33[0m'
     # Formatting options
@@ -95,14 +55,7 @@ class Colors():
 
 # Helper Functions 
 def which(cmd, path=None):
-    """Checks if an executable is in $PATH
-    @param cmd <str>:
-        Name of executable to check
-    @param path <list>:
-        Optional list of PATHs to check [default: $PATH]
-    @return <boolean>:
-        True if exe in PATH, False if not in PATH
-    """
+    """Return True if cmd is an executable in path (default: $PATH)."""
     if path is None:
         path = os.environ["PATH"].split(os.pathsep)
 
@@ -117,40 +70,19 @@ def which(cmd, path=None):
 
 
 def err(*message, **kwargs):
-    """Prints any provided args to standard error.
-    kwargs can be provided to modify print functions 
-    behavior.
-    @param message <any>:
-        Values printed to standard error
-    @params kwargs <print()>
-        Key words to modify print function behavior
-    """
+    """Print args to standard error; kwargs are passed to print()."""
     print(*message, file=sys.stderr, **kwargs)
 
 
 
 def fatal(*message, **kwargs):
-    """Prints any provided args to standard error
-    and exits with an exit code of 1.
-    @param message <any>:
-        Values printed to standard error
-    @params kwargs <print()>
-        Key words to modify print function behavior
-    """
+    """Print args to standard error and exit with code 1."""
     err(*message, **kwargs)
     sys.exit(1)
 
 
 def get_toolkit(tool_list):
-    """Finds the best suited tool from a list of
-    possible choices. Assumes tool list is already
-    ordered from the best to worst choice. The first 
-    tool found in a user's $PATH is returned.
-    @param tool_list list[<str>]:
-        List of ordered tools to find
-    @returns best_choice <str>:
-        First tool found in tool_list
-    """
+    """Return the first tool from the ordered tool_list that is found in $PATH."""
     best_choice = None 
     for exe in tool_list:
         if which(exe):
@@ -172,35 +104,13 @@ def get_toolkit(tool_list):
 
 
 def add_missing(linelist, insertion_dict):
-    """Adds missing information to a list. This can be used 
-    to add missing job information fields to the results of 
-    job querying tool.
-    @param linelist list[<str>]:
-        List containing job information for each field of interest
-    @param insertion_dict dict[<int>] = str
-        Dictionary used to insert missing information to a given
-        index, where the keys are indices of the `linelist` and the 
-        values are information to add. Please note that the indices
-        should be zero based. Note that multiple consequetive values
-        should be inserted at once as a list, see example below:
-    Example:
-        add_missing([0,1,2,3,4], {3:['+','++'], 1:'-', 4:'@'})
-        >> [0, '-', 1, 2, '+', '++', 3, '@', 4]
-    """
-    # Get the order of indices
-    # add missing information
-    # starting from largest to
-    # smallest, if we insert 
-    # missing values in this 
-    # order we do not need to
-    # calculate the offset of 
-    # new indices
+    """Insert values into linelist at zero-based indices from insertion_dict, e.g.
+    add_missing([0,1,2,3,4], {3:['+','++'], 1:'-', 4:'@'})"""
+    # Insert from the largest index down so earlier offsets do not shift.
     tmp_list = linelist
     indices = sorted(list(insertion_dict.keys()), reverse=True)
     for i in indices:
-        # Check if multiple values
-        # need to be inserted at a 
-        # given index
+        # A list inserts several values at one index
         if isinstance(insertion_dict[i], list):
             for v in reversed(insertion_dict[i]):
                 tmp_list.insert(i, v)
@@ -212,9 +122,7 @@ def add_missing(linelist, insertion_dict):
 def convert_size(size_bytes):
     """Converts bytes to a human readable format.
     """
-    # Sizes range from B to YiB, 
-    # warning larger sizes storage
-    # may results in blackhole  
+    # Sizes range from B to YiB
     size_name = (
         "B", "KiB", "MiB", 
         "GiB", "TiB", "PiB", 
@@ -252,9 +160,7 @@ def to_bytes(size):
         scaling_factor = size2bytes[human_units]
         bytes = int(math.ceil(scaling_factor * float(match.group('size'))))
     else:
-        # Cannot parse units,
-        # cannot convert value
-        # into bytes
+        # Cannot parse units into bytes
         return None
     
     return bytes
@@ -264,41 +170,20 @@ def to_bytes(size):
 # Core logic for getting 
 # job information
 def sge(jobs, threads, tmp_dir):
-    """Displays SGE job information to standard output.
-    @param sub_args <parser.parse_args() object>:
-        Parsed command-line arguments
-    @return None
-    """
+    """Display SGE job information (not implemented)."""
     # NOTE: add later for SGE cluster
     pass
 
 
 def uge(jobs, threads, tmp_dir):
-    """Displays UGE job information to standard output.
-    @param sub_args <parser.parse_args() object>:
-        Parsed command-line arguments
-    @return None
-    """
+    """Display UGE job information (not implemented)."""
     # NOTE: add later for LOCUS cluster 
     pass
 
 
 def dashboard_cli(jobs, threads=1, tmp_dir=None):
-    """Biowulf-specific tool to get SLURM job information.
-    HPC staff recommend using this over the default slurm 
-    `sacct` command for performance reasons. By default, 
-    the `dashboard_cli` returns information for the following
-    fields:
-      jobid         state         submit_time   partition     nodes         
-      cpus          mem           timelimit     gres          dependency    
-      queued_time   state_reason  start_time    elapsed_time  end_time      
-      cpu_max       mem_max       eval
-    Runs command:
-        $  dashboard_cli jobs \\
-            --joblist 12345679,12345680 \\
-            --fields FIELD,FIELD,FIELD \\
-            --tab --archive
-    """
+    """Biowulf job information via dashboard_cli, which HPC staff recommend over sacct
+    for performance."""
     fields = [
         "jobid","jobname",
         "state","partition",
@@ -311,9 +196,7 @@ def dashboard_cli(jobs, threads=1, tmp_dir=None):
         "work_dir"
     ]
     
-    # Display header information,
-    # --tab option does not print
-    # the header
+    # --tab does not print a header, so print it here
     print('\t'.join(fields))
     # Display job information
     cmd = subprocess.run(
@@ -338,13 +221,7 @@ def dashboard_cli(jobs, threads=1, tmp_dir=None):
 
 
 def get_slurm_version():
-    """Gets the version of SLURM in the user's $PATH.
-    Runs `sacct -V` to get version information, and 
-    returns a list containing ['Major','Minor','Patch']
-    information.
-    @return sematic_version list[<int>]
-        List containing Major, Minor, and Patch version.
-    """
+    """Return SLURM's [major, minor, patch] version from `sacct -V`."""
     # Get SLURM's sematic version
     cmd = subprocess.run(
         'sacct -V', 
@@ -361,25 +238,8 @@ def get_slurm_version():
 
 
 def sacct(jobs, threads=1, tmp_dir=None):
-    """Generic tool to get SLURM job information.
-    `sacct` should be available on all SLURM clusters.
-    The `dashboard_cli` is prioritized over using `sacct`
-    due to perform reasons; however, this method will be
-    portable across different SLURM clusters. To get maximum 
-    memory usage for a job, we will need to parse the MaxRSS 
-    field from the `$SLURM_JOBID.batch` lines.
-    Returns job information for the following fields:
-      jobid        jobname    state      partition    reqtres  
-      alloccpus    reqmem     maxrss     timelimit    reserved
-      start        end        elapsed    nodelist     user
-      workdir
-    To get maximum memory usage for a job, we will need to parse
-    the MaxRSS fields from the `$SLURM_JOBID.batch` lines.
-    Runs command:
-        $  sacct -j 12345679,12345680 \\
-            --fields FIELD,FIELD,FIELD \\
-            -P --delimiter $'\t' 
-    """
+    """Generic SLURM job information via sacct, portable across clusters. Max memory
+    comes from the MaxRSS field of the $SLURM_JOBID.batch lines."""
     header =  [
         "jobid","jobname","state","partition",
         "gres","cpus","mem","cpu_max","mem_max",
@@ -437,13 +297,9 @@ def sacct(jobs, threads=1, tmp_dir=None):
         err('Please see error message below:')
         fatal('  └── ', cmd.stderr)
     
-    # Get max memory information,
-    # Stored as $SLURM_JOBID.batch
-    # in the MaxRSS field
+    # Max memory is in the MaxRSS field of the $SLURM_JOBID.batch lines
     j2m = {}
-    # Remove trailing newline from
-    # standard output and split lines
-    # on remaining newline characters
+    # Strip the trailing newline and split into lines
     job_information = cmd.stdout.rstrip('\n').split('\n')
     for i, line in enumerate(job_information):
         if i < 1:
@@ -455,9 +311,7 @@ def sacct(jobs, threads=1, tmp_dir=None):
             maxmem = linelist[7].replace(' ', '')
             mem_bytes = to_bytes(maxmem)
             if not mem_bytes:
-                # Could not convert
-                # max_mem value into 
-                # bytes
+                # Could not convert max_mem into bytes
                 j2m[jobid] = '-'
                 continue   # goto next line
 
@@ -475,9 +329,7 @@ def sacct(jobs, threads=1, tmp_dir=None):
             try:
                 max_mem = j2m[jobid]
             except KeyError:
-                # Job maybe still be 
-                # running or in a non-
-                # completed state.
+                # Job may still be running or not completed
                 max_mem = '-'
             status = linelist[2].split(' ')[0]
             linelist[2] = status
@@ -488,32 +340,16 @@ def sacct(jobs, threads=1, tmp_dir=None):
 
 
 def slurm(jobs, threads, tmp_dir):
-    """Displays SLURM job information to standard output.
-    @param sub_args <parser.parse_args() object>:
-        Parsed command-line arguments
-    @return None
-    """
-    # Try to use the following tools in this 
-    # order to get job information!
-    # [1] `dashboard_cli` is Biowulf-specific
-    # [2] `sacct` should always be there
+    """Display SLURM job information."""
+    # Prefer the Biowulf-specific dashboard_cli, falling back to sacct
     tool_priority = ['dashboard_cli', 'sacct']
     job_tool = get_toolkit(tool_priority)
-    # Get information about each job
-    # must use eval() to make string
-    # to callable function
+    # eval() turns the tool name into its handler function
     eval(job_tool)(jobs=jobs, threads=threads, tmp_dir=tmp_dir)
 
 
 def jobby(args):
-    """
-    Wrapper to each supported job scheduler: slurm, etc. 
-    Each scheduler has a custom handler to most effectively
-    get and parse job information. 
-    @param sub_args <parser.parse_args() object>:
-        Parsed command-line arguments
-    @return None
-    """
+    """Dispatch to the handler for the requested job scheduler."""
     # Get command line options
     abstract_handler = None
     job_ids   = args.JOB_ID
@@ -543,17 +379,8 @@ def jobby(args):
 
 # Parse command-line arguments
 def parsed_arguments(name, description):
-    """Parses user-provided command-line arguments. This requires 
-    argparse and textwrap packages. To create custom help formatting 
-    a text wrapped docstring is used to create the help message for 
-    required options. As so, the help message for require options 
-    must be suppressed. If a new required argument is added to the 
-    cli, it must be updated in the usage statement docstring below.
-    @param name <str>:
-        Name of the pipeline or command-line tool 
-    @param description <str>:
-        Short description of pipeline or command-line tool 
-    """
+    """Parse command-line arguments. Help for required options is suppressed and kept
+    in the usage statement, so update it when adding an argument."""
     # Add styled name and description
     c = Colors
     styled_name = "{0}{1}{2}{3}{4}".format(
@@ -680,11 +507,7 @@ def parsed_arguments(name, description):
         help = argparse.SUPPRESS
     )
 
-    # Number of threads for the 
-    # pipeline's main proceess
-    # This is only applicable for 
-    # local rules or when running 
-    # in local mode.
+    # Threads for the main process (local rules or local mode only)
     parser.add_argument(
         '-n', '--threads',
         type = int,
@@ -693,9 +516,7 @@ def parsed_arguments(name, description):
         help = argparse.SUPPRESS
     )
 
-    # Job scheduler to query,
-    # available: SLURM, ...
-    # More coming soon!
+    # Job scheduler to query (only SLURM for now)
     parser.add_argument(
         '-s', '--scheduler',
         type = lambda s: str(s).lower(),

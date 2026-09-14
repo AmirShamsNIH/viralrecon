@@ -114,7 +114,7 @@ section > h2{font-size:30px;font-weight:800}
 .step h3 .tool{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted)}
 .step p{margin-top:6px}
 .why{color:var(--muted)}
-.why::before{content:"Why it matters — ";font-weight:600;color:var(--ink)}
+.why::before{content:"Why it matters: ";font-weight:600;color:var(--ink)}
 
 .spec{background:var(--paper);border:1px solid var(--rule);padding:18px 18px 8px;align-self:start}
 .spec h4{margin:0 0 10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
@@ -169,7 +169,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
 <header class="mast">
   <div class="eyebrow">NIAID · RTB Genomics Research Section · Pipeline brief</div>
   <h1>viral<span>recon</span></h1>
-  <p class="lede">From raw sequencing reads to an annotated, clade-assigned viral genome — for any virus, in one reproducible run.</p>
+  <p class="lede">From raw sequencing reads to an annotated, clade-assigned viral genome, for any virus, in one reproducible run.</p>
   <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single report a scientist opens first. It runs on NIH Biowulf and on NIAID's BigSky cluster.</p>
 
   <div class="readstrip" aria-hidden="true">
@@ -254,9 +254,9 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Reference build</h2>
       <div class="stage">
         <div class="prose">
-          <p>Before any sample is touched, each reference genome is prepared once and registered. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation — useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
+          <p>Before any sample is touched, each reference genome is prepared once and registered. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation, useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
           <p>The build downloads the genome and gene annotation, builds the alignment index, the sequence dictionary and a protein-effect database, and records the virus's NCBI taxonomy ID. Optionally it fetches a Nextclade dataset for that virus. All of this is written into a single registry, <code>genome.json</code>, which accumulates references across projects.</p>
-          <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome — an error that would otherwise have silently removed that gene from every protein-effect call.</p>
+          <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome, an error that would otherwise have silently removed that gene from every protein-effect call.</p>
         </div>
         <aside class="spec">
           <h4>Build produces</h4>
@@ -310,7 +310,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
         <div class="prose">
           <p>Samples sequenced directly from patients or the environment are mostly <em>not</em> virus. Every read is classified taxonomically against the Kraken2 standard database, producing an interactive Krona chart and a composition table showing the viral, target-virus, human and bacterial fractions.</p>
           <p>Human reads, the PhiX sequencing control and bacterial reads are then removed before alignment. This protects patient privacy in downstream files, shortens run time, and prevents host sequence from mapping to conserved regions of the viral genome.</p>
-          <p>In the validation run, the on-target fraction ranged from <strong>1.5 %</strong> to <strong>97.8 %</strong> across samples. This single number explains most differences in final coverage — which is why it sits in the summary table beside the genome results.</p>
+          <p>In the validation run, the on-target fraction ranged from <strong>1.5 %</strong> to <strong>97.8 %</strong> across samples. This single number explains most differences in final coverage, which is why it sits in the summary table beside the genome results.</p>
         </div>
         <aside class="spec">
           <h4>Key settings</h4>
@@ -330,7 +330,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <div class="stage">
         <div class="prose">
           <p>Cleaned reads are aligned to each reference with Bowtie2 in local mode, which tolerates the mismatches expected between a sample and a reference that may be years diverged. Unmapped, secondary and supplementary alignments are filtered out so each read contributes once.</p>
-          <p>Depth is measured along the whole genome in 200 bp windows and binned at 0, 10, 50 and 100× — the thresholds that decide whether a position can be trusted. Alignment metrics from samtools and Picard feed the project QC report.</p>
+          <p>Depth is measured along the whole genome in 200 bp windows and binned at 0, 10, 50 and 100×, the thresholds that decide whether a position can be trusted. Alignment metrics from samtools and Picard feed the project QC report.</p>
           <p>A reference that attracts fewer than 1,000 mapped reads is flagged and its downstream steps skipped, so one poor reference in a multi-reference run does not stall the others. Duplicate reads are kept: at the extreme depths typical of viral sequencing, true independent reads share start positions, and removing them would discard real signal.</p>
         </div>
         <aside class="spec">
@@ -352,7 +352,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Variant calling &amp; annotation</h2>
       <div class="stage">
         <div class="prose">
-          <p>A viral sample is rarely a single genome. Within one infection the population carries minority variants — early resistance mutations, co-infections, or the start of a lineage shift. viralrecon calls variants with FreeBayes in <strong>pooled-continuous</strong> mode, which models the sample as a mixture and reports alleles present in as little as <strong>2 %</strong> of reads rather than forcing a diploid-style genotype.</p>
+          <p>A viral sample is rarely a single genome. Within one infection the population carries minority variants: early resistance mutations, co-infections, or the start of a lineage shift. viralrecon calls variants with FreeBayes in <strong>pooled-continuous</strong> mode, which models the sample as a mixture and reports alleles present in as little as <strong>2 %</strong> of reads rather than forcing a diploid-style genotype.</p>
           <p>Multi-allelic sites are split into one record per allele and normalised so the same change is always written the same way. Each variant is annotated by SnpEff with its gene, its effect (synonymous, missense, frameshift…) and the protein change in standard notation, for example <code>p.Gln6249His</code>, also given in short form as <code>Q6249H</code>.</p>
           <p>Two call sets are kept on purpose: <strong>raw</strong>, everything the caller saw, and <strong>filtered</strong>, calls passing quality and depth thresholds. Comparing the two tells a reviewer whether a mutation is genuinely absent from a sample or was present and filtered out.</p>
         </div>
@@ -440,12 +440,12 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <span class="kicker">Value</span>
       <h2>Key features</h2>
       <div class="features">
-        <div class="feature"><h3>Works for any virus</h3><p>No step is written for one pathogen. Everything that differs between viruses — genome, annotation, taxonomy ID, Nextclade dataset — is recorded on the reference, so adding a virus is a build command.</p></div>
+        <div class="feature"><h3>Works for any virus</h3><p>No step is written for one pathogen. Everything that differs between viruses (genome, annotation, taxonomy ID, Nextclade dataset) is recorded on the reference, so adding a virus is a build command.</p></div>
         <div class="feature"><h3>Reproducible by construction</h3><p>Every tool runs from a version-pinned Singularity image, never a cluster module that can change underneath a project. Each run directory keeps the exact code and parameters that produced it.</p></div>
         <div class="feature"><h3>Minority variants, not just consensus</h3><p>Population-aware calling down to 2% allele frequency surfaces co-infections and emerging mutations that a consensus-only analysis hides by construction.</p></div>
-        <div class="feature"><h3>Several references in one run</h3><p>Samples are compared against multiple references at once — for example a historical type strain and a current circulating isolate — with results kept cleanly separate.</p></div>
+        <div class="feature"><h3>Several references in one run</h3><p>Samples are compared against multiple references at once (for example a historical type strain and a current circulating isolate), with results kept cleanly separate.</p></div>
         <div class="feature"><h3>Honest genomes</h3><p>Low-evidence positions are masked rather than filled from the reference, so a genome never claims sequence nobody measured.</p></div>
-        <div class="feature"><h3>A verdict, not just numbers</h3><p>Each result carries a pass or a named warning — low coverage, too few mapped reads, a failed clade call — so problems are found by reading one column.</p></div>
+        <div class="feature"><h3>A verdict, not just numbers</h3><p>Each result carries a pass or a named warning (low coverage, too few mapped reads, a failed clade call), so problems are found by reading one column.</p></div>
         <div class="feature"><h3>Failures stay contained</h3><p>An annotation that fails for one sample is recorded and reported without discarding the run. The error log stays empty when nothing failed, and lists exactly what did when something does.</p></div>
         <div class="feature"><h3>Runs on two clusters</h3><p>The same code runs on NIH Biowulf and NIAID BigSky. Paths, container locations and queue names are resolved per platform from configuration.</p></div>
       </div>
@@ -455,7 +455,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <span class="kicker">Value</span>
       <h2>Validation</h2>
       <div class="prose">
-        <p>The pipeline was run end to end on the NIAID_1409 project: eight SARS-CoV-2 samples against two references — Wuhan-Hu-1 (<code>NC_045512.2</code>) and a 2023 Omicron isolate (<code>PP115423.1</code>). All 353 jobs completed and all 16 results passed QC. Separately, its variant calls reproduced all seven variants reported by the existing RML analysis of the same data.</p>
+        <p>The pipeline was run end to end on the NIAID_1409 project: eight SARS-CoV-2 samples against two references, Wuhan-Hu-1 (<code>NC_045512.2</code>) and a 2023 Omicron isolate (<code>PP115423.1</code>). All 353 jobs completed and all 16 results passed QC. Separately, its variant calls reproduced all seven variants reported by the existing RML analysis of the same data.</p>
       </div>
 
       <div class="tablewrap">
@@ -496,7 +496,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
         <p>Every run ends in the same layout, ordered by what a reader needs first.</p>
       </div>
 <div class="tree"><span class="h">final_report/</span>
-├── run_summary.tsv                 <span class="c">one row per sample × reference — start here</span>
+├── run_summary.tsv                 <span class="c">one row per sample × reference, start here</span>
 ├── multiqc/project_multiqc_report.html
 └── <span class="h">&lt;reference&gt;/</span>
     ├── figures/                    <span class="c">genome overview, variant heatmap, coverage, composition</span>

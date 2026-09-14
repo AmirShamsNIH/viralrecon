@@ -1,6 +1,4 @@
-# ############################################################################
-# common.smk — shared helpers and wildcard constraints
-# ############################################################################
+# common.smk: shared helpers and wildcard constraints
 
 from scripts.common import allocated
 

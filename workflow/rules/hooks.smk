@@ -1,48 +1,8 @@
-# ############################################################################
-# hooks.smk — pipeline lifecycle hooks
-#
-# Sentinel files
-# --------------
-# Snakemake's exit status is only visible in the master job's log, which is
-# awkward to check from a script, a cron job, or another pipeline. These hooks
-# keep exactly one marker file in the output directory root at all times:
-#
-#   RUNNING    the master job is alive
-#   COMPLETED  every rule finished, exit 0
-#   FAILED     at least one rule failed
-#
-# So `[ -f COMPLETED ]` is a complete answer to "did this run work", with no
-# log parsing. The previous marker is always removed first, so a rerun after a
-# failure cannot leave both FAILED and COMPLETED behind.
-#
-# final_report/.done is a different thing and both are worth having: .done says
-# the report was assembled, COMPLETED says the whole DAG succeeded.
-#
-# Job accounting
-# --------------
-# On exit, `jobby` (workflow/scripts/jobby, from OpenOmics/RNA-seek) is run
-# over every SLURM job id the master submitted, producing:
-#
-#   job_information_<timestamp>.tsv   every job: state, requested cpus/mem and
-#                                     time, plus the cpu_max / mem_max actually
-#                                     used, node, and stdout/stderr paths
-#   failed_jobs_<timestamp>.tsv       the FAILED subset, for triage
-#
-# mem_max and cpu_max are the point of this: they turn cluster.json from a set
-# of guesses into something measurable. It runs on both success and failure -
-# a failed run is exactly when the resource numbers matter most.
-# ############################################################################
+# hooks.smk: keep one sentinel (RUNNING, COMPLETED or FAILED) in the run directory and
+# run jobby over this run's SLURM jobs on exit, whether it succeeded or failed.
 
-# Both master streams go to master.log, opened in append mode so a re-run does
-# not destroy the previous run's driver log. Snakemake writes nearly everything
-# to stderr, including ordinary progress, so master.log is the full record and
-# master.err is reserved for failures only: empty when a run succeeds, and the
-# first thing to read when the FAILED sentinel appears.
-#
-# Because master.log now spans runs, anything derived from it has to look only
-# at the current run. onstart writes a marker line and _CURRENT_SLICE keeps
-# just the text after the last one - otherwise jobby would report SLURM ids
-# from previous runs as if they belonged to this one.
+# master.log is appended across runs and master.err holds failures only.
+# _CURRENT_SLICE keeps the text after onstart's marker, so jobby sees this run only.
 _MASTER_LOG = join("logfiles", "master.log")
 _MASTER_ERR = join("logfiles", "master.err")
 _RUN_MARKER = "=== viralrecon run started"
@@ -57,12 +17,8 @@ sleep 15
 rm -f COMPLETED FAILED RUNNING
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 
-# Collect the SLURM ids this run submitted. Nothing is submitted when the DAG
-# is already satisfied, so an empty list is normal, not an error.
-# The `|| true` is load-bearing, not defensive noise: grep exits 1 when it
-# matches nothing, and under `set -e` a VAR=$(...) assignment takes the
-# command's status, so a run whose DAG was already satisfied - submitting no
-# jobs at all - aborted this hook and reported FAILED despite succeeding.
+# SLURM ids this run submitted; none is normal when the DAG was already satisfied.
+# `|| true` stops grep's exit 1 on no match from failing the hook under set -e.
 JOBIDS=$(grep --color=never "^Submitted .* external jobid" "$CURRENT" 2>/dev/null \
     | awk '{{print $NF}}' | sed "s/['.]//g" | sort -u | tr "\n" " " || true)
 
@@ -99,11 +55,8 @@ onsuccess:
           "   Resources: job_information_<timestamp>.tsv\n")
 
 
-# On failure, master.err gets the rule-level errors Snakemake reported for this
-# run, with the per-rule log path each one names, plus the SLURM failures. That
-# is the whole point of keeping it empty otherwise: FAILED sentinel -> open
-# master.err -> see what broke and which log to read, without scrolling a
-# driver log that spans several runs.
+# On failure, master.err gets this run's rule errors with their log paths plus the
+# SLURM failures, so FAILED leads straight to what broke.
 _ERR_REPORT = r"""
 {
   echo "viralrecon FAILED  $(date +'%Y-%m-%d %H:%M:%S')"

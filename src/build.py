@@ -1,29 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-build.py — Download, index, and register a viral reference genome.
-
-Run ONCE per accession before 'viralrecon run'.  Produces a self-contained
-reference directory and a genome.json that the pipeline consumes directly.
-
-Output layout under --output/VIRUS_ACCESSION/:
-  VIRUS_ACCESSION.fa          reference FASTA
-  VIRUS_ACCESSION.fa.fai      samtools faidx index
-  VIRUS_ACCESSION.dict        sequence dictionary (Picard / GATK)
-  VIRUS_ACCESSION.{1..4}.bt2  Bowtie2 index
-  VIRUS_ACCESSION.rev.{1,2}.bt2
-  genes.gff                   GFF3 annotation
-  sequences.fa                snpEff copy of FASTA
-  genes.gff  (copy)           snpEff copy of annotation
-  snpEff.config               snpEff database config
-  build_index.log             indexing log
-
-Also writes / updates  --output/genome.json  with the registered target paths.
-Pass that file to  'viralrecon run --genome /path/genome.json'.
-
-Load required cluster modules before calling:
-    module load singularity      # the only module this needs
-"""
+"""Download, index and register a viral reference genome in genome.json."""
 
 import json
 import os
@@ -38,9 +15,7 @@ except ImportError:
     from utils import err, fatal, which
     import containers
 
-# ---------------------------------------------------------------------------
-# Built-in virus → accession presets
-# ---------------------------------------------------------------------------
+# Built-in virus to accession presets
 
 VIRUS_PRESETS = {
     "SARS":           "NC_045512.2",   # SARS-CoV-2 Wuhan-Hu-1
@@ -55,13 +30,11 @@ VIRUS_PRESETS = {
 
 
 def _canonical_name(virus, accession):
-    """VIRUS_ACCESSION — the target name used throughout the pipeline."""
+    """VIRUS_ACCESSION, the target name used throughout the pipeline."""
     return "{}_{}".format(virus.upper().replace(" ", "_"), accession)
 
 
-# ---------------------------------------------------------------------------
 # Download helpers
-# ---------------------------------------------------------------------------
 
 def _curl_or_wget(url, out):
     if which("curl"):
@@ -69,7 +42,7 @@ def _curl_or_wget(url, out):
     elif which("wget"):
         subprocess.check_call(["wget", "-q", url, "-O", out])
     else:
-        fatal("Neither curl nor wget found — cannot download reference files.")
+        fatal("Neither curl nor wget found: cannot download reference files.")
 
 
 def _efetch_fasta(accession, out_path):
@@ -86,25 +59,16 @@ def _efetch_fasta(accession, out_path):
 
 
 def _efetch_taxid(accession):
-    """
-    NCBI taxid for an accession, or None if it cannot be determined.
-
-    Recorded in genome.json so the Kraken2 composition profile can report each
-    target's own share of the library. Without it that profile can only be
-    hardcoded, which means it reports the wrong virus for every target the
-    hardcoding did not anticipate.
-    """
+    """NCBI taxid for an accession, or None. Recorded so the Kraken2 profile can
+    report each target's own share of the library."""
     import tempfile
     import time
 
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
     url  = "{}/esummary.fcgi?db=nuccore&id={}&retmode=json".format(base, accession)
 
-    # NCBI throttles anonymous callers at roughly three requests a second, and
-    # a build already issues two efetch calls immediately before this one. A
-    # single attempt therefore fails intermittently - observed while building
-    # three references back to back - and a missing taxid is silent, costing
-    # that target its own row in the composition profile. Retry with backoff.
+    # NCBI throttles anonymous callers to about 3 requests/s and a build has just
+    # made two efetch calls, so retry with backoff rather than lose the taxid.
     for attempt in range(3):
         tmp = None
         try:
@@ -147,12 +111,12 @@ def _download_reference(accession, genome_dir, canonical_name):
     gff_out   = os.path.join(genome_dir, "genes.gff")
 
     if os.path.isfile(fasta_out) and os.path.getsize(fasta_out) > 0:
-        print("  FASTA already present — skipping download")
+        print("  FASTA already present, skipping download")
     else:
         _efetch_fasta(accession, fasta_out)
 
     if os.path.isfile(gff_out) and os.path.getsize(gff_out) > 0:
-        print("  GFF already present — skipping download")
+        print("  GFF already present, skipping download")
     else:
         _efetch_gff(accession, gff_out)
 
@@ -169,9 +133,7 @@ def _download_reference(accession, genome_dir, canonical_name):
     return os.path.abspath(fasta_out), os.path.abspath(gff_out)
 
 
-# ---------------------------------------------------------------------------
 # Local file validation
-# ---------------------------------------------------------------------------
 
 def _fasta_seqs(path):
     """{sequence id: length} from a FASTA. Ids are the first whitespace token."""
@@ -207,18 +169,8 @@ def _annotation_features(path):
 
 
 def _validate_local(fasta, annotation):
-    """
-    Check the FASTA and the annotation actually describe the same genome.
-
-    This is the whole safety story for a user-supplied pair. snpEff will
-    happily annotate against whatever coordinates it is handed, and the build
-    runs with -noCheckCds -noCheckProtein, which suppresses exactly the checks
-    that would otherwise catch a mismatch. An annotation built against a
-    different assembly version or isolate therefore produces confident,
-    wrong protein consequences with nothing anywhere reporting a problem.
-    Comparing sequence ids and coordinate bounds up front is cheap and catches
-    the realistic mistakes.
-    """
+    """Check the FASTA and annotation describe the same genome. snpEff runs with
+    -noCheckCds -noCheckProtein, so a mismatched pair would annotate silently wrong."""
     errors = []
     if not os.path.isfile(fasta):
         errors.append("FASTA not found: {}".format(fasta))
@@ -270,29 +222,16 @@ def _validate_local(fasta, annotation):
           .format(len(seqs), len(feats)))
 
 
-# ---------------------------------------------------------------------------
-# Tool execution — Singularity only
-#
-# Every external tool comes from a pinned image, exactly as the workflow rules
-# do. Nothing here may depend on `module load`: a module can be upgraded or
-# removed underneath a build, and its version is not recorded anywhere in the
-# resulting reference directory, whereas the image path is.
-#
-# Images are resolved from config/containers.json so this file never carries a
-# second, drifting copy of the paths.
-# ---------------------------------------------------------------------------
+# Tool execution: every tool runs from a pinned image resolved through
+# config/containers.json, never from `module load`.
 
-# Directories a build step may need to see from inside an image, beyond the
-# genome directory itself. Which of these exist is platform-dependent, and
-# _singularity_prefix() binds only the ones that do, so the same list is safe
-# everywhere: on BigSky /data/RTB_GRS and /fdb are simply absent.
+# Paths a build step may need inside an image; _singularity_prefix() binds only
+# the ones that exist on this platform.
 _CONTAINER_BINDS = ["/data/RTB_GRS", "/data/OpenOmics", "/data/openomics",
                     "/data/rml_ngs", "/fdb"]
 
-# Platform whose image roots this build resolves against. build() sets it from
-# --platform before any step runs; it is module state rather than a parameter
-# because every _run_cmd caller in this file would otherwise have to thread it
-# through unchanged.
+# Platform the images resolve against, set by build() from --platform. Module
+# state, so every _run_cmd caller does not have to pass it through.
 _PLATFORM = containers.DEFAULT_PLATFORM
 
 
@@ -323,10 +262,7 @@ def _singularity_prefix(image):
 
 
 def _run_cmd(cmd, label, log_file, image=None):
-    """
-    Run a command, inside `image` when one is given, appending output to
-    log_file.
-    """
+    """Run a command, inside `image` when one is given, appending output to log_file."""
     import shlex
     print("    \u2192 {}".format(label))
     argv = _singularity_prefix(image) + list(cmd) if image else list(cmd)
@@ -354,19 +290,8 @@ def _run_cmd(cmd, label, log_file, image=None):
 
 
 def _build_index(canonical_name, genome_dir):
-    """
-    Build all indices required by the pipeline inside genome_dir.
-    Idempotent — each step is skipped if its primary output already exists.
-
-    Produces:
-      {canonical}.fa.fai          samtools faidx
-      {canonical}.dict            samtools dict  (sequence dictionary)
-      {canonical}.{1..4}.bt2      bowtie2-build large index
-      {canonical}.rev.{1,2}.bt2
-      snpEff.config               snpEff database config
-      sequences.fa                snpEff copy of FASTA
-      genes.{gff|gtf}             snpEff copy of annotation
-    """
+    """Build every index the pipeline needs inside genome_dir (faidx, dict, bowtie2,
+    snpEff). Idempotent: each step is skipped if its output already exists."""
     images = _load_images()
     fasta_path = os.path.join(genome_dir, "{}.fa".format(canonical_name))
     fai_path   = fasta_path + ".fai"
@@ -391,14 +316,14 @@ def _build_index(canonical_name, genome_dir):
 
     # 1. samtools faidx
     if os.path.isfile(fai_path):
-        print("    ✓ .fa.fai exists — skip")
+        print("    ✓ .fa.fai exists, skip")
     else:
         _run_cmd(["samtools", "faidx", fasta_path], "samtools faidx", log,
                  image=images["samtools"])
 
     # 2. samtools dict
     if os.path.isfile(dict_path):
-        print("    ✓ .dict exists — skip")
+        print("    ✓ .dict exists, skip")
     else:
         _run_cmd(
             ["samtools", "dict", fasta_path, "-o", dict_path],
@@ -407,7 +332,7 @@ def _build_index(canonical_name, genome_dir):
 
     # 3. bowtie2-build
     if os.path.isfile(bt2_done):
-        print("    ✓ .1.bt2 exists — skip")
+        print("    ✓ .1.bt2 exists, skip")
     else:
         _run_cmd(
             [
@@ -422,11 +347,10 @@ def _build_index(canonical_name, genome_dir):
 
     # 4. snpEff build
     if os.path.isfile(snpeff_cfg):
-        print("    ✓ snpEff.config exists — skip")
+        print("    ✓ snpEff.config exists, skip")
     else:
-        # Write snpEff.config
-        # snpEff resolves genome data as: data.dir/<genome_name>/genes.gff
-        # So data.dir must be the PARENT of genome_dir.
+        # snpEff resolves data.dir/<genome_name>/genes.gff, so data.dir must be
+        # the parent of genome_dir.
         data_dir = os.path.dirname(genome_dir)
         with open(snpeff_cfg, "w") as fh:
             fh.write("data.dir = {}\n".format(data_dir))
@@ -455,23 +379,11 @@ def _build_index(canonical_name, genome_dir):
     print("  ✓ Indexing complete")
 
 
-# ---------------------------------------------------------------------------
 # genome.json management
-# ---------------------------------------------------------------------------
 
 def _fetch_nextclade_dataset(dataset_name, genome_dir, log):
-    """
-    Download a Nextclade dataset into the reference directory.
-
-    The dataset is data belonging to this reference, not a site-wide setting:
-    a clade call is only meaningful against the dataset built for that virus,
-    so it lives beside the FASTA and the indices and travels with them. The
-    pipeline then reads its path out of genome.json per target instead of a
-    single global directory, which could only ever describe one virus.
-
-    Needs network. Compute nodes reach NCBI and the Nextclade CDN only through
-    the session proxy, so http_proxy/https_proxy must be set by the caller.
-    """
+    """Download a Nextclade dataset into the reference directory, where genome.json
+    points to it per target. Needs network, so set http_proxy on compute nodes."""
     images = _load_images()
     out_dir = os.path.join(genome_dir, "nextclade")
     if os.path.isdir(out_dir) and os.path.isfile(os.path.join(out_dir, "pathogen.json")):
@@ -504,14 +416,8 @@ def _existing_annotation(genome_dir):
 
 
 def _reference_artifacts(genome_dir, name):
-    """
-    Every file the pipeline links out of a built reference, and therefore
-    everything that has to be present before a target can be called complete.
-
-    Kept deliberately in step with the ln -sf list in custom_virmapDB: if that
-    rule links a file, a reference missing it is not usable, and the build
-    should notice here rather than at alignment time on a compute node.
-    """
+    """Every file the pipeline links from a built reference. Keep in step with the
+    ln -sf list in custom_virmapDB."""
     required = [
         os.path.join(genome_dir, "{}.fa".format(name)),
         os.path.join(genome_dir, "{}.fa.fai".format(name)),
@@ -547,30 +453,8 @@ def _missing_artifacts(genome_dir, name):
 def _update_genome_json(genome_json_path, canonical_name, platforms,
                         fasta_path, gff_path, taxid=None, notes=None,
                         nextclade_dataset=None):
-    """
-    Add or update one target in genome.json, preserving every other entry.
-
-    genome.json is an accumulating registry: each `viralrecon build` appends a
-    target, and a directory is expected to hold several built at different
-    times from different sources. Two consequences follow.
-
-    Reading it must fail loudly. A corrupt file previously surfaced as a raw
-    JSONDecodeError traceback, which does not tell the user their registry is
-    the problem or that the file is still intact and recoverable.
-
-    Writing it must be atomic. json.dump to an opened file truncates first, so
-    an interruption between truncate and completion leaves an empty or partial
-    registry - losing every previously registered target, not just this one.
-    Writing a sibling temp file and renaming it means the file is either the
-    old registry or the new one, never a half-written one.
-
-    A `notes` string records curated knowledge about a reference that nothing
-    can derive from the files themselves - "contains long N runs, do not use
-    for consensus", "annotations are named orf, prefer X". An existing note is
-    carried forward when a target is re-registered without --notes, since a
-    rebuild is not a reason to discard something a person wrote down; pass
-    --notes "" to clear one deliberately.
-    """
+    """Add or update one target in genome.json atomically, keeping every other entry.
+    An existing note is kept unless --notes is passed (--notes "" clears it)."""
     if os.path.isfile(genome_json_path):
         try:
             with open(genome_json_path) as fh:
@@ -596,9 +480,7 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
             existing.add(plat)
         prior = tgts.get(canonical_name, {})
         entry = {"fasta": fasta_path, "gtf": gff_path}
-        # The entry is rebuilt from scratch, so anything not passed in has to
-        # be carried over explicitly or it is dropped. A backfill that adds one
-        # field would otherwise delete the others.
+        # The entry is rebuilt from scratch, so carry over any field not passed in.
         if taxid:
             entry["taxid"] = str(taxid)
         elif prior.get("taxid"):
@@ -633,20 +515,11 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
         print("  note          : {}".format(_note))
 
 
-# ---------------------------------------------------------------------------
 # Entry point
-# ---------------------------------------------------------------------------
 
 def build(sub_args, repo_path):
-    """
-    Entry point for 'viralrecon build'.
-
-    Downloads FASTA + GFF, builds all pipeline indices
-    (bowtie2-build, samtools faidx/dict, snpEff), and registers the target
-    in  --output/genome.json.
-
-    Pass that genome.json to 'viralrecon run --genome /path/genome.json'.
-    """
+    """Entry point for `viralrecon build`: fetch FASTA and GFF, build the indices,
+    and register the target in --output/genome.json."""
     virus      = sub_args.virus
     accession  = getattr(sub_args, "accession", None)
     outdir     = os.path.abspath(sub_args.output)
@@ -658,8 +531,7 @@ def build(sub_args, repo_path):
     local_pair = bool(local_fasta and local_annotation)
 
     # ── Source selection: accession XOR local files ─────────────────────────
-    # These are two ways of answering the same question - where does this
-    # reference come from - so accepting both would leave the answer ambiguous.
+    # Both say where the reference comes from, so accepting both is ambiguous.
     if accession and local_pair:
         fatal(
             "\n\t--accession and --fasta/--annotation are mutually exclusive.\n"
@@ -711,11 +583,8 @@ def build(sub_args, repo_path):
     else:
         canonical_name = _canonical_name(virus, accession)
     genome_dir     = os.path.join(outdir, canonical_name)
-    # Register only the platform being built on. The paths written into
-    # genome.json are absolute paths on this filesystem, so listing them under
-    # a second platform claims references exist somewhere they do not - a
-    # BIGSKY entry pointing at /data/RTB_GRS/... resolves to nothing there.
-    # `viralrecon run` already defaults to BIOWULF; this matches it.
+    # Register only the platform being built on, since genome.json paths are
+    # absolute on this filesystem. Defaults to BIOWULF, matching `viralrecon run`.
     platforms      = [platform] if platform else ["BIOWULF"]
     _set_platform(platforms[0])
 
@@ -725,12 +594,7 @@ def build(sub_args, repo_path):
     nc_dataset = getattr(sub_args, "nextclade_dataset", None)
 
     # ── Already built? Verify, then skip ────────────────────────────────────
-    # Registration alone is not evidence: an entry can outlive a build that was
-    # interrupted, or files can be removed afterwards. The registry says a
-    # target should exist; only the files say it does. Checking both means a
-    # repeated build is cheap when everything is present and self-repairing
-    # when it is not, instead of re-downloading a reference that is already
-    # complete or trusting one that is half there.
+    # A registry entry is not proof the files exist, so check both before skipping.
     registered = False
     if os.path.isfile(genome_json):
         try:
@@ -743,12 +607,8 @@ def build(sub_args, repo_path):
     missing = _missing_artifacts(genome_dir, canonical_name)
 
     if registered and not missing and not force:
-        # Files being complete does not make the registry entry complete. A
-        # reference built before taxids were recorded has every file it needs
-        # and no taxid, and skipping on files alone would leave it that way
-        # permanently - silently costing that target its row in the Kraken2
-        # composition profile. Backfilling is a metadata update, so the
-        # expensive file work is still skipped.
+        # Complete files do not mean a complete entry: backfill a missing taxid
+        # without redoing the file work.
         try:
             with open(genome_json) as fh:
                 _reg2 = json.load(fh)["references"]["target"]
@@ -768,12 +628,8 @@ def build(sub_args, repo_path):
                 print("\n  backfilling missing taxid {} for '{}'"
                       .format(taxid, canonical_name))
 
-        # The dataset is the other thing a complete set of files cannot imply.
-        # Nextclade aligns against the dataset's own reference rather than
-        # ours, so naming one is a decision about which nomenclature to report
-        # in, not something derivable from the FASTA -- and a reference built
-        # before that decision was made would otherwise stay unannotated for
-        # good, because every later build skips right past the fetch.
+        # Likewise fetch a missing Nextclade dataset, which complete files cannot
+        # imply and later builds would otherwise never add.
         nc_path = None
         if nc_dataset and not _entry.get("nextclade_dataset"):
             print("\n  backfilling nextclade dataset '{}' for '{}'"
@@ -790,7 +646,7 @@ def build(sub_args, repo_path):
                 taxid=taxid,
                 nextclade_dataset=nc_path,
             )
-        print("\n✓ Genome '{}' is already built and complete — skipping."
+        print("\n✓ Genome '{}' is already built and complete, skipping."
               .format(canonical_name))
         print("  Reference dir : {}".format(genome_dir))
         print("  genome.json   : {}".format(genome_json))

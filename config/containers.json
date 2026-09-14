@@ -1,19 +1,7 @@
 {
     "_comment": [
-        "Container images by tool, one .sif per tool. The file name carries the",
-        "version pin of record; there is no second list to keep in sync.",
-        "",
-        "Each image is written against one of two roots, which are the only part",
-        "that changes between platforms:",
-        "  {shared}  a read-only library maintained by someone else",
-        "  {ours}    images we pull or build ourselves",
-        "Roots are resolved by src/containers.py for the platform passed to",
-        "`viralrecon build/run --platform`. {repo_parent} expands to the directory",
-        "holding the clone, which is how a platform with no institutional reference",
-        "tree keeps its images beside the checkout.",
-        "",
-        "A rule with a container: directive runs under --use-singularity and must",
-        "NOT also call module load, which does not exist inside the image."
+        "One image per tool; the file name is the version pin. {shared} and {ours} roots",
+        "are resolved per platform by src/containers.py; {repo_parent} is the clone's parent."
     ],
     "roots": {
         "BIOWULF": {
@@ -21,7 +9,7 @@
             "ours": "/data/RTB_GRS/references/singularity"
         },
         "BIGSKY": {
-            "_note": "BigSky has a /data/openomics/SIFs but it carries only 1 of the 23 images pinned here, so both roots point at our own directory beside the clone and every image is pulled there by `viralrecon cache`.",
+            "_note": "BigSky's shared SIF library lacks these images, so both roots point beside the clone.",
             "shared": "{repo_parent}/singularity",
             "ours": "{repo_parent}/singularity"
         }
@@ -34,7 +22,7 @@
         "bowtie2": "{shared}/bowtie2-2.5_0.0.1.sif",
         "samtools": "{shared}/quay.io-biocontainers-samtools-1.21--h50ea8bc_0.img",
         "bcftools": "{shared}/quay.io-biocontainers-bcftools-1.21--h8b25389_0.img",
-        "_picard_note": "the shared ccbr_picard_v0.0.1.sif carries java and a bare picard.jar but no `picard` launcher, and is 2.11.0 against the 2.27.3 we pin",
+        "_picard_note": "the shared ccbr_picard image has no picard launcher and is 2.11.0, not the pinned 2.27.3",
         "picard": "{ours}/picard_2.27.3.sif",
         "gatk4": "{shared}/broadinstitute-gatk-4.6.2.0.img",
         "seqtk": "{shared}/quay.io-biocontainers-seqtk-1.3--h5bf99c6_3.img",
@@ -48,7 +36,7 @@
         "quast": "{ours}/quast_5.3.0.sif",
         "nextclade": "{ours}/nextclade_3.23.0.sif",
         "igvreports": "{ours}/igv-reports_1.16.0.sif",
-        "_plotting_note": "report figures use matplotlib, which the pinned quast image already carries (3.10.0) - no separate image is pulled for them. If quast is ever bumped, check that matplotlib survives the bump.",
+        "_plotting_note": "report figures use the matplotlib in the pinned quast image; recheck it if quast is bumped",
         "plotting": "{ours}/quast_5.3.0.sif"
     }
 }

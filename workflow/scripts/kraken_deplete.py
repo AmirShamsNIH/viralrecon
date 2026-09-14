@@ -1,23 +1,6 @@
 #!/usr/bin/env python3
-"""
-Deplete host / contaminant reads from a FASTQ pair using Kraken2 output.
-
-Why by taxon, and not by "keep unclassified"
---------------------------------------------
-The target virus is *in* the Kraken2 database, so its reads come back
-classified.  Keeping only unclassified reads would therefore discard exactly
-the reads the pipeline exists to analyse.  Depletion here is subtractive: a
-read is dropped only when Kraken2 assigned it inside one of the taxonomic
-subtrees named by --deplete-taxids (Homo sapiens and phiX by default).
-Unclassified reads and viral reads are always kept.
-
-Streaming contract
-------------------
-Kraken2 emits its per-read output in input order, one line per read (or per
-pair with --paired), so the classification stream and the FASTQ stream are
-consumed in lockstep.  Nothing is accumulated in memory beyond the taxid set,
-which keeps this flat regardless of library size.
-"""
+"""Deplete host and contaminant reads from a FASTQ pair using Kraken2 output. Only reads
+inside --deplete-taxids subtrees are dropped; unclassified and viral reads are kept."""
 
 import argparse
 import gzip
@@ -29,15 +12,8 @@ def open_maybe_gzip(path, mode="rt"):
 
 
 def subtree_taxids(report_path, roots):
-    """
-    Collect every taxid at or below each root taxid.
-
-    A Kraken2 report is a depth-first walk of the taxonomy where nesting is
-    encoded as two leading spaces per level in the name column.  So once a
-    root is seen, every following row with a strictly greater indent belongs
-    to its subtree, and the first row back at or above the root's indent ends
-    it.
-    """
+    """Collect every taxid at or below each root. Report nesting is two leading spaces
+    per level, so a subtree ends at the first row back at or above its indent."""
     roots = set(roots)
     keep, active_depth = set(), None
 
@@ -66,11 +42,8 @@ def subtree_taxids(report_path, roots):
     return keep
 
 
-# Clades worth reporting for a viral assay. "Unclassified" is deliberately
-# listed as its own row rather than treated as a viral proxy: the target virus
-# is in the database and therefore comes back *classified*, so the
-# unclassified bin is the unknown fraction (low-complexity sequence, adapter
-# remnants, organisms absent from the database) and nothing more.
+# Clades reported for a viral assay. "Unclassified" is its own row, not a viral
+# proxy: the target virus is in the database and comes back classified.
 PROFILE_CLADES = [
     ("0",     "unclassified"),
     ("10239", "Viruses"),

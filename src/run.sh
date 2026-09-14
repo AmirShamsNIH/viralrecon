@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# viralrecon SLURM master-job submission script.
-# Called by src/run.py runner() when --mode slurm is used.
+# SLURM master-job submission, called by src/run.py for --mode slurm.
 # Usage: run.sh slurm -j <jobname> -b <bindpaths> -o <outdir> -c <cache> -t <tmpdir>
 set -euo pipefail
 
@@ -27,18 +26,13 @@ done
 
 LOGDIR="${OUTDIR}/logfiles"
 SLURM_DIR="${LOGDIR}/slurmfiles"
-# Temporary files live inside the run directory, not in node-local /lscratch.
-# Keeping them here means they are on the same filesystem as their outputs, they
-# survive a job for inspection when something fails, and the run directory is
-# self-contained: nothing it produced is stranded on a compute node.
+# Temporary files stay in the run directory beside their outputs, so nothing is
+# stranded on a compute node and a failure can be inspected.
 : "${TMPDIR:=${OUTDIR}/tmp}"
 mkdir -p "${LOGDIR}" "${SLURM_DIR}" "${TMPDIR}"
 
-# Clear the previous run's status markers at SUBMIT time, not in Snakemake's
-# onstart hook. onstart only fires once the master job starts, so between
-# sbatch and that moment a stale COMPLETED sits over a job that is queued or
-# running - which reads as a finished, successful run to anything checking the
-# sentinel. Nothing downstream can tell the difference.
+# Clear old status markers at submit time: onstart fires only once the master job
+# starts, so a stale COMPLETED would otherwise sit over a queued run.
 rm -f "${OUTDIR}/COMPLETED" "${OUTDIR}/FAILED" "${OUTDIR}/RUNNING"
 
 # Write a self-contained kickoff.sh so the run can be re-submitted
@@ -61,14 +55,8 @@ export APPTAINER_TMPDIR="${TMPDIR}"
 mkdir -p "${TMPDIR}"
 cd "${OUTDIR}"
 
-# Rules declare their own resources via allocated() in the Snakefile;
-# cluster.json is loaded inside the Snakefile, not via --cluster-config.
-#
-# --keep-going matters with several targets: the per-target branches are
-# independent, so a reference that a library barely maps to should not abandon
-# work already queued for the others. Snakemake still exits non-zero and the
-# FAILED sentinel is still written, so a partial run is never mistaken for a
-# clean one.
+# Rules take resources from allocated() in the Snakefile, not --cluster-config.
+# --keep-going lets independent targets finish; any failure still writes FAILED.
 CLUSTER_OPTS="sbatch --cpus-per-task {threads} --mem {resources.mem} --time {resources.time} --partition {resources.partition} --job-name viralrecon.{rule} --output ${SLURM_DIR}/slurm-%j_{rule}.out --error ${SLURM_DIR}/slurm-%j_{rule}.out"
 
 snakemake -pr \\

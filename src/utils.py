@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-Shared utility functions for the viralrecon pipeline CLI.
-Mirrors the OpenOmics/baseline utils.py pattern.
-"""
+"""Shared utility functions for the viralrecon CLI."""
 
 import os
 import re
@@ -71,9 +68,8 @@ def require(cmds, suggestions, path=None):
 
 
 def permissions(parser, path, *args, **kwargs):
-    """Check that path exists and the user has the specified access.
-    Returns the absolute path if valid; calls parser.error() otherwise.
-    """
+    """Return the absolute path if it exists with the requested access, otherwise
+    call parser.error()."""
     if not exists(path):
         parser.error("Path '{}' does not exist.".format(path))
     if not os.access(path, *args, **kwargs):
@@ -82,9 +78,8 @@ def permissions(parser, path, *args, **kwargs):
 
 
 def check_cache(parser, cache):
-    """Validate a Singularity cache directory.
-    Creates it if absent; errors if it exists as a file or is owned by another user.
-    """
+    """Validate a Singularity cache directory, creating it if absent. Errors if it is
+    a file or owned by another user."""
     c = Colors()
     if not exists(cache):
         os.makedirs(cache)

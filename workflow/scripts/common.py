@@ -1,21 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""
-Common helper functions shared across the entire viralrecon workflow.
-Mirrors the OpenOmics/baseline workflow/scripts/common.py pattern.
-"""
+"""Helper functions shared across the viralrecon workflow."""
 
 
 def allocated(resource, rule, lookup, default='__default__'):
-    """Return a resource value for a rule from cluster.json.
-    Falls back to __default__ if the rule has no explicit entry.
-
-    @param resource <str>: 'threads', 'mem', 'time', 'partition', 'gres', etc.
-    @param rule     <str>: Snakemake rule name (must match cluster.json key)
-    @param lookup  <dict>: parsed cluster.json dict
-    @param default  <str>: fallback key [default: '__default__']
-    @return <str>
-    """
+    """Return a resource value ('threads', 'mem', 'time', ...) for rule from the
+    parsed cluster.json, falling back to the __default__ entry."""
     try:
         return lookup[rule][resource]
     except KeyError:
@@ -23,9 +13,7 @@ def allocated(resource, rule, lookup, default='__default__'):
 
 
 def provided(sample_list, condition):
-    """Return sample_list when condition is True, empty list otherwise.
-    Used in rule all to conditionally include optional output targets.
-    """
+    """Return sample_list when condition is True, otherwise an empty list."""
     return sample_list if condition else []
 
 
@@ -35,9 +23,8 @@ def ignore(sample_list, condition):
 
 
 def references(config, ref_keys):
-    """Return True only if every key in ref_keys exists and is non-empty in
-    config['references']. Used to guard rules that need optional references.
-    """
+    """True only if every key in ref_keys is present and non-empty in
+    config['references']."""
     for key in ref_keys:
         val = config.get('references', {}).get(key, '')
         if not val:
@@ -46,10 +33,8 @@ def references(config, ref_keys):
 
 
 def str_bool(s):
-    """Safely cast a string to bool.
-    Accepts: 'true'/'1'/'y'/'yes' → True; 'false'/'0'/'n'/'no'/'' → False.
-    Raises TypeError for anything else.
-    """
+    """Cast a string to bool: true/1/y/yes or false/0/n/no/empty. Raises TypeError
+    for anything else."""
     v = str(s).lower()
     if v in ('true', '1', 'y', 'yes'):
         return True

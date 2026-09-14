@@ -102,11 +102,8 @@
     },
     "paths": {
         "_comment": [
-            "Databases the pipeline does not build, which exist on every cluster but",
-            "never at the same absolute path. src/run.py writes the active platform's",
-            "value into parameters.<_parameter_stage>.<name> before Snakemake sees the",
-            "config, so rules read a plain path and adding a platform is an edit here.",
-            "A platform missing from an entry is a fatal error, not a silent default."
+            "Per-platform database paths, written by src/run.py into",
+            "parameters.<_parameter_stage>.<name>; a missing platform is fatal."
         ],
         "kraken2_decon_db": {
             "_parameter_stage": "pre_process",

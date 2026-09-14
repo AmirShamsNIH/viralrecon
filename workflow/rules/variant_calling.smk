@@ -1,39 +1,15 @@
-# ############################################################################
-# variant_calling.smk — haplotype calling and per-sample variant annotation
-#
-# Rules
-# -----
-#   freebayes_haplotypecaller - FreeBayes -> bgzip/tabix -> GATK VariantsToTable
-#                               → SnpEff annotation → annotated table
-# ############################################################################
+# variant_calling.smk: FreeBayes calling, normalisation, SnpEff/SnpSift annotation, consensus.
 
 from os.path import join
 from scripts.common import allocated
 
 
-# ── freebayes_call / bcftools_norm / snpeff_annotate / bgzip_snpeff /
-#    gatk_variants_table ────────────────────────────────────────────────────
-#
-# This was one rule while the pipeline ran on modules. It chained samtools,
-# FreeBayes, bcftools, SnpEff and GATK, and a rule may declare only one
-# container. The work is now split along tool boundaries.
-#
-# The FreeBayes image happens to carry samtools, bgzip, tabix and awk, so
-# downsampling and compression stay with the caller. SnpEff and SnpSift images
-# carry neither bgzip nor bcftools, so those rules emit plain VCF and a
-# following bcftools rule compresses and indexes it.
+# ── freebayes_call / bcftools_norm / snpeff_annotate / bgzip_snpeff / gatk_variants_table
+# Split by tool image; SnpEff and SnpSift lack htslib, so bcftools rules compress their VCFs.
 
 rule freebayes_call:
-    """
-    Call variants with FreeBayes on a per-sample, per-target BAM.
-
-    Ultra-deep viral libraries are pre-downsampled: FreeBayes at a low
-    alternate-fraction threshold with no base-quality floor becomes intractable
-    at hundreds of thousands of x, which is what the max_reads cap avoids.
-
-    @Input:  alignment BAM + reference FASTA
-    @Output: bgzipped raw VCF + index
-    """
+    """Call variants with FreeBayes per sample and target, downsampling ultra-deep
+    libraries to max_reads so calling stays tractable."""
     input:
         bam  = join(WORKPATH, "{sample}", "alignment", "{target}",
                     "{sample}.{target}.bowtie2_map.bam"),
@@ -91,12 +67,7 @@ tabix -p vcf "{output.vcf_raw}" >> "{log}" 2>&1
 
 
 rule bcftools_norm:
-    """
-    Left-align indels and split multi-allelic records.
-
-    @Input:  raw VCF from freebayes_call
-    @Output: normalised VCF + index
-    """
+    """Left-align indels and split multi-allelic records."""
     input:
         vcf = rules.freebayes_call.output.vcf_raw,
         tbi = rules.freebayes_call.output.tbi_raw,
@@ -131,15 +102,7 @@ tabix -p vcf "{output.vcf_norm}" >> "{log}" 2>&1
 
 
 rule snpeff_annotate:
-    """
-    Annotate variant effects with SnpEff.
-
-    Emits plain VCF: the SnpEff image carries neither bgzip nor bcftools, so
-    compression and indexing happen in bgzip_snpeff.
-
-    @Input:  normalised VCF
-    @Output: annotated plain VCF (temp) + SnpEff summary
-    """
+    """Annotate variant effects with SnpEff, emitting plain VCF for bgzip_snpeff."""
     input:
         vcf = rules.bcftools_norm.output.vcf_norm,
         snpeff_cfg = join(WORKPATH, "ref_db", "{target}", "snpEff.config"),
@@ -175,15 +138,7 @@ touch "{output.snpeff_sum}"
 
 
 rule bgzip_snpeff:
-    """
-    Compress and index the SnpEff output.
-
-    A separate rule only because the SnpEff image has no htslib; this is the
-    canonical annotated VCF that the report and lineage stages consume.
-
-    @Input:  annotated plain VCF
-    @Output: bgzipped annotated VCF + index
-    """
+    """Compress and index the SnpEff output, the canonical annotated VCF."""
     input:
         vcf = rules.snpeff_annotate.output.vcf,
     output:
@@ -212,12 +167,7 @@ tabix -p vcf "{output.vcf_ann}" >> "{log}" 2>&1
 
 
 rule gatk_variants_table:
-    """
-    Flatten the annotated VCF into a table.
-
-    @Input:  annotated VCF
-    @Output: variants table
-    """
+    """Flatten the annotated VCF into a table."""
     input:
         vcf = rules.bgzip_snpeff.output.vcf_ann,
         tbi = rules.bgzip_snpeff.output.tbi_ann,
@@ -250,12 +200,7 @@ gatk VariantsToTable {params.extra} \
 # ── bcftools_stats ────────────────────────────────────────────────────────────
 
 rule bcftools_stats:
-    """
-    VCF QC summary statistics with bcftools stats.
-
-    @Input:  per-sample annotated VCF from freebayes_haplotypecaller
-    @Output: bcftools stats text report
-    """
+    """VCF QC summary statistics with bcftools stats."""
     input:
         vcf = rules.bgzip_snpeff.output.vcf_ann,
         fa  = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
@@ -286,17 +231,7 @@ bcftools stats {params.extra} --fasta-ref "{input.fa}" \
 # ── snpsift_annotate ──────────────────────────────────────────────────────────
 
 rule snpsift_annotate:
-    """
-    SnpSift filter on the annotated VCF, plus a flat field extraction.
-
-    Emits plain VCF: the SnpSift image carries neither bgzip nor bcftools, so
-    compression and indexing happen in bgzip_snpsift. Note also that SnpSift
-    ships as its own biocontainer - unlike the Biowulf snpEff module, the
-    snpEff image does not bundle it.
-
-    @Input:  annotated VCF from bgzip_snpeff
-    @Output: filtered plain VCF (temp) + extracted fields
-    """
+    """SnpSift filter on the annotated VCF plus a flat field extraction, as plain VCF."""
     input:
         vcf = rules.bgzip_snpeff.output.vcf_ann,
         tbi = rules.bgzip_snpeff.output.tbi_ann,
@@ -332,12 +267,7 @@ SnpSift extractFields -s "," -e "." \
 # ── bgzip_snpsift ─────────────────────────────────────────────────────────────
 
 rule bgzip_snpsift:
-    """
-    Compress and index the SnpSift-filtered VCF for bcftools consensus.
-
-    @Input:  filtered plain VCF
-    @Output: bgzipped filtered VCF + index
-    """
+    """Compress and index the SnpSift-filtered VCF for bcftools consensus."""
     input:
         vcf = rules.snpsift_annotate.output.vcf_filt,
     output:
@@ -368,20 +298,8 @@ tabix -p vcf "{output.vcf_filt}" >> "{log}" 2>&1
 # ── bcftools_consensus ────────────────────────────────────────────────────────
 
 rule bcftools_consensus:
-    """
-    Generate a per-sample consensus FASTA by applying called variants
-    to the reference with bcftools consensus.
-
-    Positions whose depth is below `consensus_min_depth` are masked to N using
-    the mosdepth per-base BED.  Without this, bcftools emits the *reference*
-    base wherever there was no coverage, which silently turns "no data" into a
-    confident reference call — the resulting FASTA would look like a complete
-    genome while asserting reference identity at uncovered sites.
-
-    @Input:  filtered VCF from snpsift_annotate, reference FASTA, mosdepth
-             per-base coverage BED
-    @Output: per-sample depth-masked consensus FASTA + the mask itself
-    """
+    """Per-sample consensus FASTA from the filtered variants, masking positions below
+    consensus_min_depth to N so uncovered sites are not called reference."""
     input:
         vcf = rules.bgzip_snpsift.output.vcf_filt,
         tbi = rules.bgzip_snpsift.output.tbi_filt,
@@ -426,11 +344,8 @@ bcftools consensus {params.extra} \
     --output "{output.consensus}" \
     "{input.vcf}" >> "{log}" 2>&1
 
-# Header is sample.target, matching the file-naming convention that other
-# tools derive their MultiQC sample name from. Nextclade takes its name from
-# this header instead, so with an underscore here the same sample arrived in
-# MultiQC under two different keys and rendered as two rows.
-# (Braces are avoided above: Snakemake formats comments in a shell body too.)
+# Header is sample.target, the key other tools derive for MultiQC, so each sample is
+# one row. Snakemake formats shell comments too, so avoid braces here.
 HEADER="{wildcards.sample}.{wildcards.target}"
 sed -i "s/^>.*/>$HEADER/" "{output.consensus}" >> "{log}" 2>&1
 """

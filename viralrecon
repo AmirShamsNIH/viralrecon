@@ -13,7 +13,7 @@ Usage:
 
 Typical workflow
 ----------------
-  # 1. Build reference(s) — run once per accession
+  # 1. Build reference(s), run once per accession
   #    Every tool runs from a pinned Singularity image; no module load needed.
   viralrecon build --virus MARBURG --accession KM261523.1 --output /data/refs
   viralrecon build --virus SARS    --accession NC_045512.2 --output /data/refs
@@ -141,7 +141,7 @@ def _sub_build(sub):
                    choices=["BIOWULF", "BIGSKY"],
                    help="Platform whose filesystem holds the reference (default: BIOWULF).")
     p.add_argument("--no-index",    action="store_true", default=False,
-                   help="Skip indexing — download FASTA + GFF only.")
+                   help="Skip indexing: download FASTA + GFF only.")
     p.set_defaults(func=_build.build)
     return p
 
