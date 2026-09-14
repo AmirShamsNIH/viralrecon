@@ -59,6 +59,44 @@ and container invocation.
 
 ## 2. Overview of the pipeline
 
+Every sample is processed against every selected reference, and each result is namespaced
+`{sample}.{target}` so several viruses in one run cannot mix. Snakemake schedules each step
+as SLURM jobs in the order below; the dashed step runs only for references that carry a
+Nextclade dataset.
+
+```mermaid
+flowchart TD
+    fq[/"Raw FASTQ<br/>paired or single-end"/]
+    acc[/"Reference accession<br/>or local FASTA + GFF"/]
+
+    acc --> s1["1 · Reference build<br/>genome, annotation, indexes<br/>bowtie2 · samtools · SnpEff"]
+    s1 --> reg[("genome.json<br/>reference registry")]
+
+    fq --> s2["2 · Read clean-up<br/>repair, trim, filter<br/>BBTools · fastp · FastQC"]
+    s2 --> s3["3 · Composition<br/>classify, deplete host<br/>Kraken2 · Krona"]
+
+    subgraph pair ["every sample × every selected reference"]
+        s4["4 · Alignment<br/>map, measure depth<br/>Bowtie2 · Picard · mosdepth"]
+        s5["5 · Variant calling<br/>call, normalise, annotate<br/>FreeBayes · bcftools · SnpEff · SnpSift"]
+        s6["6 · Consensus<br/>depth-masked genome<br/>bcftools consensus"]
+        s7["7 · Clade<br/>when a dataset exists<br/>Nextclade"]
+        s4 --> s5 --> s6
+        s4 -. depth mask .-> s6
+        s6 -.-> s7
+    end
+
+    reg --> s4
+    s3 --> s4
+    s3 --> s8
+    s6 --> s8
+    s7 -.-> s8
+    s8["8 · Reporting<br/>gathers every sample and reference<br/>MultiQC · QUAST · IGV · figures"]
+    s8 --> out[/"final_report/<br/>run_summary.tsv"/]
+
+    classDef optional stroke-dasharray: 5 5
+    class s7 optional
+```
+
 ### 2.1 Stages
 
 Stages run in the order below. `lineage` is optional.
