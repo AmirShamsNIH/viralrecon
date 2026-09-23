@@ -1,13 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# ── Edit these ────────────────────────────────────────────────────────────────
 VIRALRECON=/data/RTB_GRS/internal/pipeline/viralrecon
 INPUT_DIR=/data/shamsaddinisha/Test_Space/GRS_virmap/virmap_fastq
 OUTPUT_DIR=/data/shamsaddinisha/Test_Space/GRS_virmap/viralrecon_out
-GENOME_JSON=/data/shamsaddinisha/Test_Space/GRS_virmap/target_reference/data/genome.json
-TARGETS="MARBURG_KM261523.1 SARS_NC_045512.2"   # leave blank for all targets
-# ─────────────────────────────────────────────────────────────────────────────
+GENOME_JSON=/data/shamsaddinisha/Test_Space/GRS_virmap/target_reference/genome.json
+TARGETS="MARBURG_KM261523.1 SARS_NC_045512.2"
 
 FASTQS=$(find "$INPUT_DIR" -maxdepth 1 -name "*.fastq.gz" | sort)
 if [ -z "$FASTQS" ]; then
@@ -22,5 +20,5 @@ $VIRALRECON/viralrecon run \
     --targets $TARGETS
 
 echo "Submitted. Monitor:"
-echo "  tail -f $OUTPUT_DIR/logfiles/master.err"
+echo "  tail -f $OUTPUT_DIR/logfiles/master.log"
 echo "  squeue -u \$USER"
