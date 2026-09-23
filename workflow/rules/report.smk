@@ -47,7 +47,9 @@ mkdir -p "{params.outdir}"
 
 NVCF=$(echo {input.vcfs} | wc -w)
 if [ "$NVCF" -gt 1 ]; then
-    bcftools merge {params.extra_merge} --threads {threads} \
+    # Indexed merge in bcftools 1.21 segfaults when no input has a record (a target
+    # nothing mapped to); every VCF shares one reference order, so stream instead.
+    bcftools merge --no-index {params.extra_merge} --threads {threads} \
         -O u {input.vcfs} 2>> "{log}" \
     | bcftools annotate -x FORMAT/GL,FORMAT/PL \
         -O z -o "{output.agg_vcf}" 2>> "{log}"
@@ -345,7 +347,9 @@ mkdir -p "{params.outdir}"
 
 NVCF=$(echo {input.vcfs} | wc -w)
 if [ "$NVCF" -gt 1 ]; then
-    bcftools merge {params.extra_merge} --threads {threads} \
+    # Indexed merge in bcftools 1.21 segfaults when no input has a record (a target
+    # nothing mapped to); every VCF shares one reference order, so stream instead.
+    bcftools merge --no-index {params.extra_merge} --threads {threads} \
         -O u {input.vcfs} 2>> "{log}" \
     | bcftools annotate -x FORMAT/GL,FORMAT/PL \
         -O z -o "{output.vcf}" 2>> "{log}"
