@@ -2,7 +2,7 @@
 
 <h1>viralrecon 🦠</h1>
 <b>Viral Variation Analysis Pipeline</b><br/>
-<i>NIH Biowulf · GRS BigSky · <a href="https://github.com/OpenOmics/baseline">OpenOmics/baseline</a> structure</i>
+<i>NIH Biowulf · GRS BigSky · NIAID Skyline · <a href="https://github.com/OpenOmics/baseline">OpenOmics/baseline</a> structure</i>
 
 <br/><br/>
 
@@ -10,7 +10,7 @@
 <a href="#22-dependencies"><img alt="Snakemake" src="https://img.shields.io/badge/snakemake-%E2%89%A57.0-brightgreen"></a>
 <a href="#23-containers"><img alt="Singularity" src="https://img.shields.io/badge/singularity-only-%23663399"></a>
 <a href=".github/workflows/main.yaml"><img alt="CI" src="https://img.shields.io/badge/CI-dry--run%20DAG-lightgrey"></a>
-<a href="#"><img alt="Platform" src="https://img.shields.io/badge/platform-Biowulf%20%7C%20BigSky-orange"></a>
+<a href="#"><img alt="Platform" src="https://img.shields.io/badge/platform-Biowulf%20%7C%20BigSky%20%7C%20Skyline-orange"></a>
 
 <h3>
 <a href="#1-introduction">Introduction</a> ·
@@ -365,6 +365,55 @@ export PATH=/data/rml_ngs/viralrecon/bin:/data/rml_ngs/viralrecon/sm_venv/bin:$P
 `--gres=lscratch` is needed, which is just as well, since BigSky has no
 `/lscratch`.
 
+### 2.7 Platform profile: Skyline
+
+Pass `--platform SKYLINE` to both `build` and `run`. Skyline (NIAID, submit host
+`ai-hpcsubmit1.niaid.nih.gov`) has its own `/data`, separate from BigSky's, so none of
+the BigSky paths exist there.
+
+**The layout.** The clone sits with the lab's other pipelines, and everything it needs
+that is not a shared database sits in one sibling directory:
+
+```
+/data/rtb_grs/internal/pipeline/
+├── viralrecon/              the clone
+└── viralrecon_resources/
+    ├── singularity/         the images  ({repo_parent}/viralrecon_resources/singularity)
+    ├── krona/taxonomy/      Krona taxonomy, copied from Biowulf
+    ├── references/          `viralrecon build --output` goes here
+    └── test_data/           the validation FASTQs
+```
+
+**What differs**
+
+| | Biowulf | Skyline |
+|---|---|---|
+| SLURM partition | `norm` | `all` (also `gpu`) |
+| `singularity` | compute nodes only | apptainer 1.5.0 on submit **and** compute nodes |
+| Internet | login node only; proxy for HTTP | everywhere, **no proxy needed** |
+| Snakemake | `module load python/3.10` | 7.22.0 in a user miniconda, or `module load snakemake/7.22.0-ufanewz` |
+| Node-local scratch | `/lscratch/$SLURM_JOB_ID` | none; `/tmp` is mounted **noexec** |
+| Kraken2 database | `/fdb/kraken/20260226_standard_kraken2` | `/data/bio_db/kraken_db/plus_PFV_Oct2025` |
+| Krona taxonomy | `/data/RTB_GRS/references/krona/taxonomy` | `viralrecon_resources/krona/taxonomy` |
+| Kraken2 loading | `--memory-mapping` | whole database into RAM |
+
+**Kraken2.** Skyline has no standard database. `plus_PFV_Oct2025` is the closest: the
+standard libraries (archaea, bacteria, viral, plasmid, human, UniVec_Core) plus protozoa
+and fungi. Depletion removes the same taxa, but composition percentages will not match
+a Biowulf run exactly. Kraken2 runs without `--memory-mapping` here: paging the 101 GB
+database in at random from GPFS left a 20 MB sample unfinished after an hour, while one
+sequential load fits the rule's 150 GB request.
+
+**Snakemake.** Stay on 7.x; the `snakemake/8.18.2` modules will not run this
+workflow. Snakemake 7.22 parses the apptainer version with `LooseVersion`, so the
+BigSky version shim is not needed.
+
+**Images.** The pinned set (~6 GB) was copied from Biowulf. `/data/openomics/SIFs`
+exists on Skyline but holds almost none of the pins, so both roots point at
+`viralrecon_resources/singularity`.
+
+**Scratch.** `$OUTDIR/tmp` is used for everything, as on the other clusters.
+
 ## 3. Run the pipeline
 
 ### 3.1 Build a reference
@@ -387,7 +436,7 @@ dataset lands in `<reference>/nextclade/` and its path is recorded in `genome.js
 
 Names come from `nextclade dataset list`: `sars-cov-2`, `mpox`, `rsv_a`,
 `flu_h1n1pdm_ha` and others. On Biowulf this step needs the proxy set (§2.5); BigSky
-reaches the internet directly.
+and Skyline reach the internet directly.
 
 Record curated knowledge about a reference: the kind nothing can be derived from the
 files themselves. The note is stored in `genome.json`, echoed whenever a run selects that
@@ -430,7 +479,8 @@ directory; `config/` is copied once and does not otherwise refresh:
 ./viralrecon run -i ... -o ... --genome ... --overwrite-pipeline-template
 ```
 
-Pass `--platform BIGSKY` to both `build` and `run` on BigSky; Biowulf is the default.
+Pass `--platform BIGSKY` or `--platform SKYLINE` to both `build` and `run` on those
+clusters; Biowulf is the default.
 `unlock` releases a stale Snakemake lock on an output directory.
 
 ### 3.3 Configuration

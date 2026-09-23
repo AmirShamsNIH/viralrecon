@@ -56,7 +56,7 @@
         "pre_process": {
             "bbtools_reformat": "overwrite=t crashjunk=f fixjunk=t iupacToN=t ignorebadquality=t tossbrokenreads=t minlength=30 maxcalledquality=41 mincalledquality=2",
             "fastp_trim": "--length_required 30 --compression 4 --detect_adapter_for_pe --overrepresentation_analysis --low_complexity_filter --complexity_threshold 30 --unqualified_percent_limit 40 --qualified_quality_phred 20",
-            "kraken2_decon": "--memory-mapping --gzip-compressed",
+            "kraken2_decon": "",
             "kraken2_decon_db": "",
             "kraken2_decon_taxids": "9606 10847 2",
             "kraken2_profile_taxids": "",
@@ -102,18 +102,27 @@
     },
     "paths": {
         "_comment": [
-            "Per-platform database paths, written by src/run.py into",
+            "Per-platform database paths and flags, written by src/run.py into",
             "parameters.<_parameter_stage>.<name>; a missing platform is fatal."
         ],
+        "kraken2_decon": {
+            "_parameter_stage": "pre_process",
+            "_note": "Memory-mapping pages the database in at random; on Skyline GPFS that is far slower than one sequential load.",
+            "BIOWULF": "--memory-mapping --gzip-compressed",
+            "BIGSKY": "--memory-mapping --gzip-compressed",
+            "SKYLINE": "--gzip-compressed"
+        },
         "kraken2_decon_db": {
             "_parameter_stage": "pre_process",
             "BIOWULF": "/fdb/kraken/20260226_standard_kraken2",
-            "BIGSKY": "/data/rml_ngs/kraken_db/K2/k2_standard"
+            "BIGSKY": "/data/rml_ngs/kraken_db/K2/k2_standard",
+            "SKYLINE": "/data/bio_db/kraken_db/plus_PFV_Oct2025"
         },
         "krona_taxonomy": {
             "_parameter_stage": "pre_process",
             "BIOWULF": "/data/RTB_GRS/references/krona/taxonomy",
-            "BIGSKY": "/data/rml_ngs/ngs_dbs/krona/taxonomy"
+            "BIGSKY": "/data/rml_ngs/ngs_dbs/krona/taxonomy",
+            "SKYLINE": "/data/rtb_grs/internal/pipeline/viralrecon_resources/krona/taxonomy"
         }
     }
 }

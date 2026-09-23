@@ -138,7 +138,7 @@ def _sub_build(sub):
                        "into DIR/genome.json."
                    ))
     p.add_argument("--platform",    default=None,
-                   choices=["BIOWULF", "BIGSKY"],
+                   choices=["BIOWULF", "BIGSKY", "SKYLINE"],
                    help="Platform whose filesystem holds the reference (default: BIOWULF).")
     p.add_argument("--no-index",    action="store_true", default=False,
                    help="Skip indexing: download FASTA + GFF only.")
@@ -178,7 +178,7 @@ def _sub_run(sub):
     p.add_argument("--config",    default=None, metavar="JSON",
                    help="Alternate config.json (default: config/config.json).")
     p.add_argument("--platform",  default="BIOWULF",
-                   choices=["BIOWULF", "BIGSKY"],
+                   choices=["BIOWULF", "BIGSKY", "SKYLINE"],
                    help="HPC platform (default: BIOWULF).")
     p.add_argument("--mode",      default="slurm",
                    choices=["slurm", "local"],

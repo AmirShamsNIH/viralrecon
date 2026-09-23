@@ -170,7 +170,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
   <div class="eyebrow">NIAID · RTB Genomics Research Section · Pipeline brief</div>
   <h1>viral<span>recon</span></h1>
   <p class="lede">From raw sequencing reads to an annotated, clade-assigned viral genome, for any virus, in one reproducible run.</p>
-  <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single report a scientist opens first. It runs on NIH Biowulf and on NIAID's BigSky cluster.</p>
+  <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single report a scientist opens first. It runs on NIH Biowulf and on NIAID's BigSky and Skyline clusters.</p>
 
   <div class="readstrip" aria-hidden="true">
     <div class="bases" id="bases"></div>
@@ -447,7 +447,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
         <div class="feature"><h3>Honest genomes</h3><p>Low-evidence positions are masked rather than filled from the reference, so a genome never claims sequence nobody measured.</p></div>
         <div class="feature"><h3>A verdict, not just numbers</h3><p>Each result carries a pass or a named warning (low coverage, too few mapped reads, a failed clade call), so problems are found by reading one column.</p></div>
         <div class="feature"><h3>Failures stay contained</h3><p>An annotation that fails for one sample is recorded and reported without discarding the run. The error log stays empty when nothing failed, and lists exactly what did when something does.</p></div>
-        <div class="feature"><h3>Runs on two clusters</h3><p>The same code runs on NIH Biowulf and NIAID BigSky. Paths, container locations and queue names are resolved per platform from configuration.</p></div>
+        <div class="feature"><h3>Runs on three clusters</h3><p>The same code runs on NIH Biowulf, NIAID BigSky and NIAID Skyline. Paths, container locations and queue names are resolved per platform from configuration.</p></div>
       </div>
     </section>
 

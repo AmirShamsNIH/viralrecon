@@ -225,10 +225,9 @@ def _validate_local(fasta, annotation):
 # Tool execution: every tool runs from a pinned image resolved through
 # config/containers.json, never from `module load`.
 
-# Paths a build step may need inside an image; _singularity_prefix() binds only
-# the ones that exist on this platform.
-_CONTAINER_BINDS = ["/data/RTB_GRS", "/data/OpenOmics", "/data/openomics",
-                    "/data/rml_ngs", "/fdb"]
+# Directories a build step reads or writes inside an image, set by build() from
+# --output so no cluster path is hardcoded here.
+_CONTAINER_BINDS = []
 
 # Platform the images resolve against, set by build() from --platform. Module
 # state, so every _run_cmd caller does not have to pass it through.
@@ -254,7 +253,7 @@ def _singularity_prefix(image):
     """argv prefix that runs a command inside `image`."""
     here  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     roots = list(containers.image_roots(here, _PLATFORM).values())
-    binds = ",".join(d for d in _CONTAINER_BINDS + roots if os.path.isdir(d))
+    binds = ",".join(dict.fromkeys(d for d in _CONTAINER_BINDS + roots if os.path.isdir(d)))
     cmd = ["singularity", "exec"]
     if binds:
         cmd += ["--bind", binds]
@@ -399,8 +398,8 @@ def _fetch_nextclade_dataset(dataset_name, genome_dir, log):
     if not os.path.isfile(os.path.join(out_dir, "pathogen.json")):
         fatal(
             "\n\tNextclade dataset '{}' did not download.\n"
-            "\tCheck the name against `nextclade dataset list`, and that the\n"
-            "\tproxy is set: export https_proxy=http://dtn20-e0:3128"
+            "\tCheck the name against `nextclade dataset list`, and that this node\n"
+            "\treaches the internet (Biowulf: export https_proxy=http://dtn20-e0:3128)"
             .format(dataset_name)
         )
     return out_dir
@@ -587,6 +586,7 @@ def build(sub_args, repo_path):
     # absolute on this filesystem. Defaults to BIOWULF, matching `viralrecon run`.
     platforms      = [platform] if platform else ["BIOWULF"]
     _set_platform(platforms[0])
+    _CONTAINER_BINDS[:] = [outdir, os.path.realpath(outdir)]
 
     genome_json = os.path.join(outdir, "genome.json")
     force = getattr(sub_args, "force", False)

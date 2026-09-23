@@ -348,7 +348,7 @@ def _apply_platform_paths(config, platform):
 
 def _apply_platform_partition(output_path, platform):
     """Set __default__.partition in the run directory's cluster.json to this platform's
-    queue (norm on Biowulf, all on BigSky); the repository file is left untouched."""
+    queue (norm on Biowulf, all on BigSky and Skyline); the repository file is left untouched."""
     path = os.path.join(output_path, 'config', 'cluster.json')
     if not exists(path):
         return

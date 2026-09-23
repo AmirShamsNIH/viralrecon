@@ -12,6 +12,11 @@
             "_note": "BigSky's shared SIF library lacks these images, so both roots point beside the clone.",
             "shared": "{repo_parent}/singularity",
             "ours": "{repo_parent}/singularity"
+        },
+        "SKYLINE": {
+            "_note": "Images are staged beside the clone; /data/openomics/SIFs lacks most pins.",
+            "shared": "{repo_parent}/viralrecon_resources/singularity",
+            "ours": "{repo_parent}/viralrecon_resources/singularity"
         }
     },
     "images": {

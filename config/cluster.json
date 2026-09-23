@@ -5,7 +5,8 @@
     ],
     "__partition__": {
         "BIOWULF": "norm",
-        "BIGSKY": "all"
+        "BIGSKY": "all",
+        "SKYLINE": "all"
     },
     "__default__": {
         "partition": "norm",
