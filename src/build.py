@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 """Download, index and register a viral reference genome in genome.json."""
 
+import csv
 import json
 import os
 import shutil
@@ -260,8 +261,9 @@ def _singularity_prefix(image):
     return cmd + [image]
 
 
-def _run_cmd(cmd, label, log_file, image=None):
-    """Run a command, inside `image` when one is given, appending output to log_file."""
+def _run_cmd(cmd, label, log_file, image=None, check=True):
+    """Run a command, inside `image` when one is given, appending output to log_file.
+    With check=False a failure is returned rather than fatal."""
     import shlex
     print("    \u2192 {}".format(label))
     argv = _singularity_prefix(image) + list(cmd) if image else list(cmd)
@@ -273,7 +275,7 @@ def _run_cmd(cmd, label, log_file, image=None):
             cmd_str, shell=True, executable="/bin/bash",
             stdout=lf, stderr=subprocess.STDOUT,
         )
-    if ret != 0:
+    if ret != 0 and check:
         if subprocess.call("command -v singularity", shell=True,
                            executable="/bin/bash",
                            stdout=subprocess.DEVNULL,
@@ -286,6 +288,7 @@ def _run_cmd(cmd, label, log_file, image=None):
         if image and not os.path.isfile(image):
             fatal("Container image missing: {}".format(image))
         fatal("{} failed (exit {}).  See log: {}".format(label, ret, log_file))
+    return ret
 
 
 def _build_index(canonical_name, genome_dir):
@@ -403,6 +406,43 @@ def _fetch_nextclade_dataset(dataset_name, genome_dir, log):
             .format(dataset_name)
         )
     return out_dir
+
+
+def _match_nextclade_dataset(fasta, genome_dir, log):
+    """The one dataset `nextclade sort` matches every FASTA record to, else None.
+    No match, a split match across segments, or no network all skip lineage."""
+    images = _load_images()
+    tsv = os.path.join(genome_dir, "nextclade_sort.tsv")
+    print("  Matching a Nextclade dataset \u2026")
+    ret = _run_cmd(
+        ["nextclade", "sort", "--output-results-tsv", tsv, fasta],
+        "nextclade sort", log, image=images["nextclade"], check=False,
+    )
+    if ret != 0 or not os.path.isfile(tsv):
+        print("    nextclade sort failed (no internet?); lineage skipped. See {}"
+              .format(log))
+        return None
+    with open(tsv) as fh:
+        rows = list(csv.DictReader(fh, delimiter="\t"))
+    matched = {r["seqName"]: r["dataset"] for r in rows if r.get("dataset")}
+    names = sorted(set(matched.values()))
+    if not names:
+        print("    no Nextclade dataset matches this reference; lineage skipped")
+        return None
+    if len(names) > 1 or len(matched) < len({r["seqName"] for r in rows}):
+        print("    records do not all match one dataset ({}); lineage skipped."
+              "\n    Pass --nextclade-dataset NAME to choose one."
+              .format(", ".join(names)))
+        return None
+    print("    matched {}".format(names[0]))
+    return names[0]
+
+
+def _choose_nextclade_dataset(requested, fasta, genome_dir, log):
+    """--nextclade-dataset wins and `none` opts out; otherwise match automatically."""
+    if requested:
+        return None if requested.lower() == "none" else requested
+    return _match_nextclade_dataset(fasta, genome_dir, log)
 
 
 def _existing_annotation(genome_dir):
@@ -591,7 +631,7 @@ def build(sub_args, repo_path):
     genome_json = os.path.join(outdir, "genome.json")
     force = getattr(sub_args, "force", False)
 
-    nc_dataset = getattr(sub_args, "nextclade_dataset", None)
+    nc_request = getattr(sub_args, "nextclade_dataset", None)
 
     # ── Already built? Verify, then skip ────────────────────────────────────
     # A registry entry is not proof the files exist, so check both before skipping.
@@ -628,15 +668,18 @@ def build(sub_args, repo_path):
                 print("\n  backfilling missing taxid {} for '{}'"
                       .format(taxid, canonical_name))
 
-        # Likewise fetch a missing Nextclade dataset, which complete files cannot
+        # Likewise add a missing Nextclade dataset, which complete files cannot
         # imply and later builds would otherwise never add.
         nc_path = None
-        if nc_dataset and not _entry.get("nextclade_dataset"):
-            print("\n  backfilling nextclade dataset '{}' for '{}'"
-                  .format(nc_dataset, canonical_name))
-            nc_path = _fetch_nextclade_dataset(
-                nc_dataset, genome_dir,
-                os.path.join(genome_dir, "build_index.log"))
+        if not _entry.get("nextclade_dataset"):
+            _log = os.path.join(genome_dir, "build_index.log")
+            nc_dataset = _choose_nextclade_dataset(
+                nc_request, os.path.join(genome_dir, "{}.fa".format(canonical_name)),
+                genome_dir, _log)
+            if nc_dataset:
+                print("\n  backfilling nextclade dataset '{}' for '{}'"
+                      .format(nc_dataset, canonical_name))
+                nc_path = _fetch_nextclade_dataset(nc_dataset, genome_dir, _log)
 
         if taxid or nc_path:
             _update_genome_json(
@@ -686,10 +729,10 @@ def build(sub_args, repo_path):
         _build_index(canonical_name, genome_dir)
 
     nc_path = None
+    _log = os.path.join(genome_dir, "build_index.log")
+    nc_dataset = _choose_nextclade_dataset(nc_request, fasta_path, genome_dir, _log)
     if nc_dataset:
-        nc_path = _fetch_nextclade_dataset(
-            nc_dataset, genome_dir,
-            os.path.join(genome_dir, "build_index.log"))
+        nc_path = _fetch_nextclade_dataset(nc_dataset, genome_dir, _log)
 
     # Write genome.json inside the reference output directory
     taxid = getattr(sub_args, "taxid", None)

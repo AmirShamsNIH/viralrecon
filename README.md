@@ -130,12 +130,15 @@ Stages run in the order below. `lineage` is optional.
 #### Lineage
 
 Clade assignment is done by **[Nextclade][15]**, and it works for any virus that has a
-Nextclade dataset: `sars-cov-2`, `mpox`, `rsv_a`, `flu_h1n1pdm_ha` and many
-more (`nextclade dataset list`).
+Nextclade dataset: SARS-CoV-2, influenza, RSV, mpox, Ebola, Marburg, dengue, measles and
+about a hundred more. `resources/nextclade_datasets.tsv` lists them all.
 
-- **The dataset belongs to the reference, not the run.** Fetch it at build time with
-  `--nextclade-dataset`; it lands in `<reference>/nextclade/` and its path is recorded in
-  `genome.json`. Nextclade runs on every target that carries one.
+- **The dataset is matched automatically at build time.** `viralrecon build` runs
+  `nextclade sort` on the reference FASTA, which compares it against every published
+  dataset. When all records match one dataset, it lands in `<reference>/nextclade/` and
+  its path is recorded in `genome.json`. When nothing matches, lineage is skipped.
+- **The dataset belongs to the reference, not the run.** Nextclade runs on every target
+  that carries one.
 - **A target without a dataset is skipped, never guessed.** Describing a sample against
   another virus's dataset would return a confident, wrong clade instead of failing.
 - **Nextclade aligns to the dataset's own reference.** The clade does not depend on which
@@ -426,17 +429,21 @@ file-by-file and skipped if complete, or completed if not.
 ./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs
 ```
 
-Fetch a Nextclade dataset into the reference so that target can be clade-called. The
-dataset lands in `<reference>/nextclade/` and its path is recorded in `genome.json`:
+A Nextclade dataset is matched to the reference automatically (§2.1, *Lineage*). A
+segmented reference whose segments match different datasets, or a virus with no dataset,
+is skipped with a message. Override the match with a name from
+`resources/nextclade_datasets.tsv`, or opt out:
 
 ```bash
 ./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs \
-                   --nextclade-dataset sars-cov-2
+                   --nextclade-dataset nextstrain/sars-cov-2/BA.2.86
+./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs \
+                   --nextclade-dataset none
 ```
 
-Names come from `nextclade dataset list`: `sars-cov-2`, `mpox`, `rsv_a`,
-`flu_h1n1pdm_ha` and others. On Biowulf this step needs the proxy set (§2.5); BigSky
-and Skyline reach the internet directly.
+Rerunning `build` on an existing reference that has no dataset matches one then. On
+Biowulf this step needs the proxy set (§2.5); BigSky and Skyline reach the internet
+directly. Refresh the catalogue with `nextclade dataset list --json`.
 
 Record curated knowledge about a reference: the kind nothing can be derived from the
 files themselves. The note is stored in `genome.json`, echoed whenever a run selects that
@@ -502,7 +509,7 @@ Frequently adjusted keys:
 | `min_mapped_reads` | `1000` | Below this, a target's downstream stages are skipped |
 
 Nextclade has no list: it runs on whichever targets carry a `nextclade_dataset` path in
-`genome.json`, written at build time.
+`genome.json`, matched at build time.
 
 ---
 
@@ -650,8 +657,8 @@ reference in IGV, the fastest way to eyeball a specific variant.
 
 An absent output can mean a stage did not apply, which is not a warning:
 
-- **No `lineage/` directory**: the reference carries no Nextclade dataset. Register one
-  with `viralrecon build --nextclade-dataset` if a dataset exists for that virus.
+- **No `lineage/` directory**: no Nextclade dataset matched the reference at build time.
+  If one exists for that virus, name it with `viralrecon build --nextclade-dataset`.
 - **A target missing downstream stages entirely**: mapping fell below `min_mapped_reads`,
   and `qc_status` says `LOW_MAPPED_READS`. One weak reference does not stop the others.
 

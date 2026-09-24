@@ -1,0 +1,107 @@
+dataset	shortcuts	virus	reference_name	reference_accession	clades	version
+community/UdeM-LMIVV/BabyV/PRRSV2/nsp3-4-5/Baby2026		Betaartivirus americense nsp3-4-5 classification	NC_038291.1-nsp3-4-5	NC_038291.1	77	2026-08-19--11-35-25Z
+community/genspectrum/marburg/HK1980/all-lineages		Orthomarburgvirus marburgense	Marburg marburgvirus isolate Marburg virus/H.sapiens-tc/KEN/1980/Mt. Elgon-Musoke, complete genome	NC_001608.3	11	2025-09-09--12-13-13Z
+community/isuvdl/mazeller/prrsv1/orf5/yimim2025		PRRSV-1 ORF5	Porcine reproductive and respiratory syndrome virus 1, ORF5 cds	M96262.2	25	2026-04-14--11-55-23Z
+community/isuvdl/mazeller/prrsv2/orf5/yimim2023		PRRSV-2 ORF5 Lineages, Yim-im & Zhang 2023 Microbiol Spectr	PRRSV0004437	DQ478308.1	33	2026-04-14--11-55-23Z
+community/itps/orov/L/refseq		orov/L/refseq	Oropouche virus, L segment	NC_005776.1	0	2026-05-12--16-39-06Z
+community/itps/orov/L/tefe		orov/L/tefe	Oropouche virus ILMD_TF29 (tefe), L segment	PP154172.1	0	2026-05-12--16-39-06Z
+community/itps/orov/M/refseq		orov/M/refseq	Oropouche virus, M segment	NC_005775.1	0	2026-05-12--16-39-06Z
+community/itps/orov/M/tefe		orov/M/tefe	Oropouche virus ILMD_TF29 (tefe), M segment	PP154171.1	0	2026-05-12--16-39-06Z
+community/itps/orov/S/refseq		orov/S/refseq	Oropouche virus, S segment	NC_005777.1	0	2026-05-12--16-39-06Z
+community/itps/orov/S/tefe		orov/S/tefe	Oropouche virus ILMD_TF29 (tefe), S segment	PP154170.1	0	2026-05-12--16-39-06Z
+community/itps/zikav		Zika virus	Natal RGN	NC_035889.1	3	2026-04-14--11-55-23Z
+community/masphl-bioinformatics/hav/vp1-2b-junction		Hepatitis A virus	Hepatitis A virus, VP1-2B junction framgment of NCBI Reference Sequence	NC_001489.1	8	2025-12-02--12-30-02Z
+community/masphl-bioinformatics/hav/whole-genome		Hepatitis A virus	Hepatitis A virus, complete genome NCBI Reference Sequence	NC_001489.1	7	2025-12-02--12-30-02Z
+community/moncla-lab/iav-h5/ha/2.3.2.1		H5Nx clade 2.3.2.1	A/duck/Vietnam/NCVD-1584/2012(H5N1)	EPI424984	10	2026-04-14--11-55-23Z
+community/moncla-lab/iav-h5/ha/2.3.4.4		H5Nx clade 2.3.4.4	A/Astrakhan/3212/2020(H5N8)	EPI1846961	11	2026-04-14--11-55-23Z
+community/moncla-lab/iav-h5/ha/all-clades		H5Nx (all clades)	A/Goose/Guangdong/1/96(H5N1)	AF144305.1	57	2026-04-14--11-55-23Z
+community/neherlab/hiv-1/hxb2	neherlab/hiv-1	HIV-1 (HXB2)	HIV-1, strain HXB2	NC_001802	100	2026-04-14--11-55-23Z
+community/pathoplexus/cchfv/L		CCHF (segment L)	Crimean-Congo hemorrhagic fever virus segment L	NC_005301.3	1	2025-09-24--07-29-03Z
+community/pathoplexus/cchfv/M		CCHF (segment M)	Crimean-Congo hemorrhagic fever virus segment M	NC_005300.2	1	2025-09-24--07-29-03Z
+community/pathoplexus/cchfv/S		CCHF (segment S)	Crimean-Congo hemorrhagic fever virus segment S	NC_005302.1	8	2025-09-24--07-29-03Z
+community/pathoplexus/yellow-fever-virus		Yellow fever virus (YFV) complete genome	17D vaccine strain	NC_002031.1	8	2026-08-12--14-03-43Z
+community/v-gen-lab/chikV/genotypes		chikV	S27-African	NC_004162.2	4	2026-04-14--11-55-23Z
+community/v-gen-lab/dengue/denv1		DENV-1	Nauru/NMRI-45AZ5PDK-0/1974	NC_001477.1	72	2026-04-14--11-55-23Z
+community/v-gen-lab/dengue/denv2		DENV-2	Thailand/CDC-16681/1964	NC_001474.2	84	2026-04-14--11-55-23Z
+community/v-gen-lab/dengue/denv3		DENV-3	D3/H/IMTSSA-SRI/2000	NC_001475.2	39	2026-04-14--11-55-23Z
+community/v-gen-lab/dengue/denv4		DENV-4	rDEN4	NC_002640.1	31	2026-04-14--11-55-23Z
+enpen/enterovirus/cva16		Coxsackievirus A16	Coxsackievirus A16 inferred ancestral sequence	ancestral_sequence	11	2026-07-29--15-14-17Z
+enpen/enterovirus/ev-a71		Enterovirus A71	Enterovirus A71 inferred ancestral sequence	ancestral_sequence	23	2026-08-19--11-35-25Z
+enpen/enterovirus/ev-d68		Enterovirus D68	Human enterovirus 68 strain Fermon, complete genome.	AY426531.1	10	2026-08-12--14-03-43Z
+nextstrain/dengue/all		Dengue virus All serotypes	dengue virus type 4	NC_002640	5	2026-04-14--11-55-23Z
+nextstrain/flu/b/ha/KX058884	flu_b_ha,nextstrain/flu/b,nextstrain/flu/b/ha,nextstrain/flu/b/ha/brisbane-60-2008	Influenza B (all) HA	B/Brisbane/60/2008-egg	KX058884	27	2026-04-14--11-55-23Z
+nextstrain/flu/b/mp	flu_b_mp,nextstrain/flu/b/mp,nextstrain/flu/b/mp/brisbane-60-2008	Influenza B (all) MP	B/Brisbane/60/2008	CY115152	0	2026-01-14--08-53-00Z
+nextstrain/flu/b/na/CY073894	flu_b_na,nextstrain/flu/b/na,nextstrain/flu/b/na/brisbane-60-2008	Influenza B (all) NA	B/Brisbane/60/2008-egg	CY073894	20	2026-04-14--11-55-23Z
+nextstrain/flu/b/np	flu_b_np,nextstrain/flu/b/np,nextstrain/flu/b/np/brisbane-60-2008	Influenza B (all) NP	B/Brisbane/60/2008	CY115154	0	2026-01-14--08-53-00Z
+nextstrain/flu/b/ns	flu_b_ns,nextstrain/flu/b/ns,nextstrain/flu/b/ns/brisbane-60-2008	Influenza B (all) NS	B/Brisbane/60/2008	CY115155	0	2026-01-14--08-53-00Z
+nextstrain/flu/b/pa	flu_b_pa,nextstrain/flu/b/pa,nextstrain/flu/b/pa/brisbane-60-2008	Influenza B (all) PA	B/Brisbane/60/2008	CY115156	0	2026-01-14--08-53-00Z
+nextstrain/flu/b/pb1	flu_b_pb1,nextstrain/flu/b/pb1,nextstrain/flu/b/pb1/brisbane-60-2008	Influenza B (all) PB1	B/Brisbane/60/2008	CY115157	0	2026-01-14--08-53-00Z
+nextstrain/flu/b/pb2	flu_b_pb2,nextstrain/flu/b/pb2,nextstrain/flu/b/pb2/brisbane-60-2008	Influenza B (all) PB2	B/Brisbane/60/2008	CY115158	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/ha	flu_h1n1_ha,nextstrain/flu/h1n1/ha,nextstrain/flu/h1n1/ha/puertorico-8-1934	Influenza A H1N1 HA	A/PuertoRico/8/1934	NC_002017	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/mp	flu_h1n1_mp,nextstrain/flu/h1n1/mp,nextstrain/flu/h1n1/mp/puertorico-8-1934	Influenza A H1N1 MP	A/PuertoRico/8/1934	NC_002016	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/na	flu_h1n1_na,nextstrain/flu/h1n1/na,nextstrain/flu/h1n1/na/puertorico-8-1934	Influenza A H1N1 NA	A/PuertoRico/8/1934	NC_002018	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/np	flu_h1n1_np,nextstrain/flu/h1n1/np,nextstrain/flu/h1n1/np/puertorico-8-1934	Influenza A H1N1 NP	A/PuertoRico/8/1934	NC_002019	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/ns	flu_h1n1_ns,nextstrain/flu/h1n1/ns,nextstrain/flu/h1n1/ns/puertorico-8-1934	Influenza A H1N1 NS	A/PuertoRico/8/1934	NC_002020	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/pa	flu_h1n1_pa,nextstrain/flu/h1n1/pa,nextstrain/flu/h1n1/pa/puertorico-8-1934	Influenza A H1N1 PA	A/PuertoRico/8/1934	NC_002022	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/pb1	flu_h1n1_pb1,nextstrain/flu/h1n1/pb1,nextstrain/flu/h1n1/pb1/puertorico-8-1934	Influenza A H1N1 PB1	A/PuertoRico/8/1934	NC_002021	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1/pb2	flu_h1n1_pb2,nextstrain/flu/h1n1/pb2,nextstrain/flu/h1n1/pb2/puertorico-8-1934	Influenza A H1N1 PB2	A/PuertoRico/8/1934	NC_002023	0	2026-01-14--08-53-00Z
+nextstrain/flu/h1n1pdm/ha/CY121680	flu_h1n1pdm_ha_broad,nextstrain/flu/h1n1pdm/ha/california-7-2009	Influenza A H1N1pdm HA	A/California/7/2009-egg	CY121680	28	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/ha/MW626062	flu_h1n1pdm_ha,nextstrain/flu/h1n1pdm,nextstrain/flu/h1n1pdm/ha,nextstrain/flu/h1n1pdm/ha/wisconsin-588-2019	Influenza A H1N1pdm HA	A/Wisconsin/588/2019	MW626062	28	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/mp		Influenza A H1N1pdm MP	A/California/7/2009	NC_026431	0	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/na/MW626056	flu_h1n1pdm_na,nextstrain/flu/h1n1pdm/na,nextstrain/flu/h1n1pdm/na/wisconsin-588-2019	Influenza A H1N1pdm NA	A/Wisconsin/588/2019	MW626056	27	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/np		Influenza A H1N1pdm NP	A/California/7/2009	NC_026436	0	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/ns		Influenza A H1N1pdm NS	A/California/7/2009	NC_026432	0	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/pa	flu_h1n1pdm_pa,nextstrain/flu/h1n1pdm/pa	Influenza A H1N1pdm PA	A/California/7/2009	NC_026437	0	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/pb1		Influenza A H1N1pdm PB1	A/California/7/2009	NC_026435	0	2026-04-14--11-55-23Z
+nextstrain/flu/h1n1pdm/pb2		Influenza A H1N1pdm PB2	A/California/7/2009	NC_026438	0	2026-04-14--11-55-23Z
+nextstrain/flu/h2n2/ha	flu_h2n2_ha,nextstrain/flu/h2n2/ha,nextstrain/flu/h2n2/ha/korea-426-1968	Influenza A H2N2 HA	A/Korea/426/1968	NC_007374	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/mp	flu_h2n2_mp,nextstrain/flu/h2n2/mp,nextstrain/flu/h2n2/mp/korea-426-1968	Influenza A H2N2 MP	A/Korea/426/1968	NC_007377	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/na	flu_h2n2_na,nextstrain/flu/h2n2/na,nextstrain/flu/h2n2/na/korea-426-1968	Influenza A H2N2 NA	A/Korea/426/1968	NC_007382	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/np	flu_h2n2_np,nextstrain/flu/h2n2/np,nextstrain/flu/h2n2/np/korea-426-1968	Influenza A H2N2 NP	A/Korea/426/1968	NC_007381	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/ns	flu_h2n2_ns,nextstrain/flu/h2n2/ns,nextstrain/flu/h2n2/ns/korea-426-1968	Influenza A H2N2 NS	A/Korea/426/1968	NC_007380	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/pa	flu_h2n2_pa,nextstrain/flu/h2n2/pa,nextstrain/flu/h2n2/pa/korea-426-1968	Influenza A H2N2 PA	A/Korea/426/1968	NC_007376	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/pb1	flu_h2n2_pb1,nextstrain/flu/h2n2/pb1,nextstrain/flu/h2n2/pb1/korea-426-1968	Influenza A H2N2 PB1	A/Korea/426/1968	NC_007375	0	2026-01-14--08-53-00Z
+nextstrain/flu/h2n2/pb2	flu_h2n2_pb2,nextstrain/flu/h2n2/pb2,nextstrain/flu/h2n2/pb2/korea-426-1968	Influenza A H2N2 PB2	A/Korea/426/1968	NC_007378	0	2026-01-14--08-53-00Z
+nextstrain/flu/h3n2/ha/CY163680	flu_h3n2_ha_broad,nextstrain/flu/h3n2/ha/wisconsin-67-2005	Influenza A H3N2 HA	A/Wisconsin/67/2005-egg	CY163680	50	2026-08-07--07-54-41Z
+nextstrain/flu/h3n2/ha/EPI1857216	flu_h3n2_ha,nextstrain/flu/h3n2,nextstrain/flu/h3n2/ha,nextstrain/flu/h3n2/ha/darwin-6-2021	Influenza A H3N2 HA	A/Darwin/6/2021	EPI1857216	50	2026-08-07--07-54-41Z
+nextstrain/flu/h3n2/mp		Influenza A H3N2 MP	A/NewYork/392/2004	NC_007367	0	2026-04-14--11-55-23Z
+nextstrain/flu/h3n2/na/EPI1857215	flu_h3n2_na,nextstrain/flu/h3n2/na,nextstrain/flu/h3n2/na/darwin-6-2021	Influenza A H3N2 NA	A/Darwin/6/2021	EPI1857215	22	2026-08-07--07-54-41Z
+nextstrain/flu/h3n2/np		Influenza A H3N2 NP	A/NewYork/392/2004	NC_007369	0	2026-04-14--11-55-23Z
+nextstrain/flu/h3n2/ns		Influenza A H3N2 NS	A/NewYork/392/2004	NC_007370	0	2026-04-14--11-55-23Z
+nextstrain/flu/h3n2/pa	flu_h3n2_pa,nextstrain/flu/h3n2/pa	Influenza A H3N2 PA	A/NewYork/392/2004	NC_007371	0	2026-04-14--11-55-23Z
+nextstrain/flu/h3n2/pb1		Influenza A H3N2 PB1	A/NewYork/392/2004	NC_007372	0	2026-04-14--11-55-23Z
+nextstrain/flu/h3n2/pb2		Influenza A H3N2 PB2	A/NewYork/392/2004	NC_007373	0	2026-04-14--11-55-23Z
+nextstrain/flu/vic/ha/KX058884	flu_vic_ha,nextstrain/flu/vic,nextstrain/flu/vic/ha,nextstrain/flu/vic/ha/brisbane-60-2008	Influenza B Victoria HA	B/Brisbane/60/2008-egg	KX058884	27	2026-04-14--11-55-23Z
+nextstrain/flu/vic/mp		Influenza B(Vic) MP (segment 7)	B/Brisbane/60/2008	CY115152	0	2025-09-09--12-13-13Z
+nextstrain/flu/vic/na/CY073894	flu_vic_na,nextstrain/flu/vic/na,nextstrain/flu/vic/na/brisbane-60-2008	Influenza B Victoria NA	B/Brisbane/60/2008	CY073894	20	2026-04-14--11-55-23Z
+nextstrain/flu/vic/np		Influenza B(Vic) NP (segment 5)	B/Brisbane/60/2008	CY115154	0	2025-09-09--12-13-13Z
+nextstrain/flu/vic/ns		Influenza B(Vic) NS (segment 8)	B/Brisbane/60/2008	CY115155	0	2025-09-09--12-13-13Z
+nextstrain/flu/vic/pa		Influenza B(Vic) PA (segment 3)	B/Brisbane/60/2008	CY115156	0	2025-09-09--12-13-13Z
+nextstrain/flu/vic/pb1		Influenza B(Vic) PB1 (segment 1)	B/Brisbane/60/2008	CY115157	0	2025-09-09--12-13-13Z
+nextstrain/flu/vic/pb2		Influenza B(Vic) PB2 (segment 2)	B/Brisbane/60/2008	CY115158	0	2025-09-09--12-13-13Z
+nextstrain/flu/yam/ha/JN993010	flu_yam_ha,nextstrain/flu/yam,nextstrain/flu/yam/ha,nextstrain/flu/yam/ha/wisconsin-1-2010	Influenza B Yamagata HA	B/Wisconsin/01/2010	JN993010	3	2026-04-14--11-55-23Z
+nextstrain/herpes/vzv/NC_001348	vzv	Varicella-Zoster Virus (VZV)	NC_001348.1	NC_001348.1	10	2026-04-14--11-55-23Z
+nextstrain/hmpv/all-clades/NC_039199	hmpv	Human Metapneumovirus	hMPV/00-1	NC_039199	10	2026-04-14--11-55-23Z
+nextstrain/measles/N450/WHO-2012		Measles N450 (WHO-2012)	Ichinose-B95a	NC_001498.1	25	2025-09-09--12-13-13Z
+nextstrain/measles/genome/WHO-2012	measles	Measles morbillivirus -- complete genome	Ichinose-B95a	NC_001498 	25	2026-04-14--11-55-23Z
+nextstrain/mpox/all-clades	MPXV,nextstrain/mpox	Mpox virus (All clades)	MPXV-M5312_HM12_Rivers	NC_063383.1	8	2026-07-07--14-07-11Z
+nextstrain/mpox/clade-i		Mpox virus (Clade I)	Zaire_1979-005	DQ011155.1	4	2026-07-07--14-07-11Z
+nextstrain/mpox/clade-iib	hMPXV	Mpox virus (Clade IIb)	MPXV-M5312_HM12_Rivers	NC_063383.1	2	2026-07-07--14-07-11Z
+nextstrain/mpox/lineage-b.1	hMPXV_B1	Mpox virus (Lineage B.1)	MPXV-M5312_HM12_Rivers with B.1 SNPs	NC_063383.1 (with B.1 SNPs)	2	2026-07-07--14-07-11Z
+nextstrain/mumps/genome		Mumps MuV Genotypes (Full genome)	Jeryl-Lynn (genotype A)	D90232	13	2026-04-14--11-55-23Z
+nextstrain/mumps/sh		Mumps MuV Genotypes (SH gene 315nt region)	Jeryl-Lynn (genotype A)	D90232	13	2026-04-14--11-55-23Z
+nextstrain/orthoebolavirus/bdbv	nextstrain/ebola/bdbv	Bundibugyo ebolavirus	UGA/2007/Butalya-811250	NC_014373.1	0	2026-07-03--09-35-04Z
+nextstrain/orthoebolavirus/ebov	ebola,nextstrain/ebola,nextstrain/ebola/zaire	Ebola virus	COD/1976/Yambuku-Mayinga	NC_002549.1	22	2026-04-14--11-55-23Z
+nextstrain/orthoebolavirus/sudv	nextstrain/ebola/sudan	Sudan virus	UGA/2000/Gulu-808892	NC_006432.1	0	2026-04-14--11-55-23Z
+nextstrain/orthohantavirus/andv/l		Andesvirus (segment L)	Chile-9717869	NC_003468	0	2026-05-29--13-46-38Z
+nextstrain/orthohantavirus/andv/m		Andesvirus (segment M)	Chile-9717869	NC_003467	0	2026-05-29--13-46-38Z
+nextstrain/orthohantavirus/andv/s		Andesvirus (segment S)	Chile-9717869	NC_003466	0	2026-05-29--13-46-38Z
+nextstrain/rsv/a/EPI_ISL_412866	rsv_a,nextstrain/rsv/a,nextstrain/rsv/a/hRSV-A-England-397-2017	RSV-A	hRSV/A/England/397/2017	EPI_ISL_412866	45	2026-04-14--11-55-23Z
+nextstrain/rsv/b/EPI_ISL_1653999	rsv_b,nextstrain/rsv/b,nextstrain/rsv/b/hRSV-B-Australia-VIC-RCH056-2019	RSV-B	hRSV/B/Australia/VIC-RCH056/2019	EPI_ISL_1653999	30	2026-04-14--11-55-23Z
+nextstrain/rubella/E1		Rubella virus E1 region	F-Therien	NC_001545.2	14	2026-04-14--11-55-23Z
+nextstrain/rubella/genome	rubella	Rubella	RVi/Bismarck.ND.USA/23.08/2B	NC_076948	14	2026-04-14--11-55-23Z
+nextstrain/sars-cov-2/BA.2.86		SARS-CoV-2 (BA.2.86)	Wuhan-Hu-1 with BA.2.86 SNPs		38	2026-09-07--17-10-15Z
+nextstrain/sars-cov-2/wuhan-hu-1/orfs	sars-cov-2,nextstrain/sars-cov-2,nextstrain/sars-cov-2/wuhan-hu-1	SARS-CoV-2	Wuhan-Hu-1/2019	MN908947	61	2026-09-07--17-10-15Z
+nextstrain/sars-cov-2/wuhan-hu-1/proteins		SARS-CoV-2 (Mature proteins)	Wuhan-Hu-1/2019	MN908947	61	2026-09-07--17-10-15Z
+nextstrain/wnv/all-lineages	wnv,west-nile,west-nile-virus	West Nile Virus	Strain NY99 (lineage 1A)	NC_009942.1	9	2026-04-14--11-55-23Z
+nextstrain/yellow-fever/prM-E		Yellow fever virus (YFV) prM-E region	Asibi	AY640589.1	8	2025-09-09--12-13-13Z
