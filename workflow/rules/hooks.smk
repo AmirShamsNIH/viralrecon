@@ -58,7 +58,7 @@ onsuccess:
 # On failure, master.err gets this run's rule errors with their log paths plus the
 # SLURM failures, so FAILED leads straight to what broke.
 _ERR_REPORT = r"""
-{
+{{
   echo "viralrecon FAILED  $(date +'%Y-%m-%d %H:%M:%S')"
   echo "master SLURM job: ${{SLURM_JOB_ID:-unknown}}"
   echo
@@ -74,7 +74,7 @@ _ERR_REPORT = r"""
   echo "SLURM failures : failed_jobs_${{timestamp}}.tsv"
   echo "Resources      : job_information_${{timestamp}}.tsv"
   echo "Full driver log: logfiles/master.log"
-} >> "{err}" 2>/dev/null || true
+}} >> "{err}" 2>/dev/null || true
 """
 
 

@@ -133,8 +133,8 @@ else
     picard MarkDuplicates {params.extra_picard} \
         I="{input.bam}" O="{output.bam}" M="{output.dupmetric}" \
         >> "{log}" 2>&1
-    picard BuildBamIndex I="{output.bam}" >> "{log}" 2>&1 \
-        || samtools index "{output.bam}" >> "{log}" 2>&1
+    picard BuildBamIndex I="{output.bam}" O="{output.bai}" >> "{log}" 2>&1 \
+        || samtools index "{output.bam}" "{output.bai}" >> "{log}" 2>&1
 fi
 """
 
