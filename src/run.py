@@ -280,7 +280,7 @@ def setup(sub_args, ifiles, repo_path, output_path):
     config['images'] = containers.resolve_images(
         repo_path, platform, data=_container_data)
     config.pop('roots', None)
-    _apply_platform_paths(config, platform)
+    _apply_platform_paths(config, platform, repo_path)
     _apply_platform_partition(output_path, platform)
 
     config['bindpaths'] = _resolve_bind_paths(sub_args, config)
@@ -315,9 +315,10 @@ def setup(sub_args, ifiles, repo_path, output_path):
     return config
 
 
-def _apply_platform_paths(config, platform):
+def _apply_platform_paths(config, platform, repo_path):
     """Write the active platform's value of each config['paths'] entry into the
     parameter that reads it. A platform with no entry is fatal, never defaulted."""
+    repo_parent = os.path.dirname(os.path.abspath(repo_path))
     for name, spec in (config.get('paths') or {}).items():
         if name.startswith('_') or not isinstance(spec, dict):
             continue
@@ -331,7 +332,8 @@ def _apply_platform_paths(config, platform):
                 .format(name, platform,
                         sorted(k for k in spec if not k.startswith('_')))
             )
-        config.setdefault('parameters', {}).setdefault(stage, {})[name] = spec[platform]
+        value = spec[platform].replace('{repo_parent}', repo_parent)
+        config.setdefault('parameters', {}).setdefault(stage, {})[name] = value
 
 
 def _apply_platform_partition(output_path, platform):

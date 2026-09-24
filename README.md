@@ -408,6 +408,20 @@ exists on Skyline but holds almost none of the pins, so both roots point at
 
 ## 3. Run the pipeline
 
+### 3.0 Start from a template
+
+`execution/` holds one batch script per cluster (`skyline.sh`, `biowulf.sh`) that builds
+the references and runs the pipeline. Copy the one for your cluster into your project,
+set `WORKDIR`, `FASTQ_DIR` and one `build` line per reference, and submit it from there:
+
+```bash
+cp /data/openomics/viralrecon/execution/skyline.sh /data/<group>/<project>/
+cd /data/<group>/<project> && sbatch skyline.sh
+```
+
+Without `--targets`, `run` uses every reference in `genome.json`. The job log lands next
+to the script as `viralrecon.<jobid>.log`; the run itself reports under `$OUT` (§4).
+
 ### 3.1 Build a reference
 
 Run once per accession. References accumulate in a single `genome.json`: a new accession

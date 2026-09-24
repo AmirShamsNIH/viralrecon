@@ -103,7 +103,7 @@
     "paths": {
         "_comment": [
             "Per-platform database paths and flags, written by src/run.py into",
-            "parameters.<_parameter_stage>.<name>; a missing platform is fatal."
+            "parameters.<_parameter_stage>.<name>; {repo_parent} is the clone's parent."
         ],
         "kraken2_decon": {
             "_parameter_stage": "pre_process",
@@ -122,7 +122,7 @@
             "_parameter_stage": "pre_process",
             "BIOWULF": "/data/RTB_GRS/references/krona/taxonomy",
             "BIGSKY": "/data/rml_ngs/ngs_dbs/krona/taxonomy",
-            "SKYLINE": "/data/rtb_grs/internal/pipeline/viralrecon_resources/krona/taxonomy"
+            "SKYLINE": "{repo_parent}/viralrecon_resources/krona/taxonomy"
         }
     }
 }
