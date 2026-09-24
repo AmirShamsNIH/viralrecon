@@ -293,6 +293,7 @@ rule bcftools_consensus:
         vcf = rules.bgzip_snpsift.output.vcf_filt,
         tbi = rules.bgzip_snpsift.output.tbi_filt,
         fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        fai = join(WORKPATH, "ref_db", "{target}", "{target}.fa.fai"),
         per_base = join(WORKPATH, "{sample}", "alignment", "{target}",
                         "mosdepth", "{sample}.{target}.per-base.bed.gz"),
     output:
@@ -320,9 +321,28 @@ rule bcftools_consensus:
         config["images"]["bcftools"]
     shell: """
 set -euo pipefail
-zcat "{input.per_base}" \
-    | awk -v d={params.min_depth} 'BEGIN{{OFS="\t"}} $4 < d {{print $1,$2,$3}}' \
-    > "{output.mask}" 2>> "{log}"
+# Mask everything not covered at min_depth, measured against the full reference:
+# mosdepth writes no rows for a BAM with no reads, which would otherwise mask nothing.
+zcat "{input.per_base}" | awk -v d={params.min_depth} 'BEGIN {{OFS = "\t"}}
+    FNR == NR {{
+        len[$1] = $2
+        ord[++n] = $1
+        next
+    }}
+    $4 >= d {{
+        if ($2 > pos[$1] + 0)
+            out[$1] = out[$1] $1 OFS pos[$1] + 0 OFS $2 ORS
+        pos[$1] = $3
+    }}
+    END {{
+        for (i = 1; i <= n; i++) {{
+            c = ord[i]
+            p = pos[c] + 0
+            if (p < len[c])
+                out[c] = out[c] c OFS p OFS len[c] ORS
+            printf "%s", out[c]
+        }}
+    }}' "{input.fai}" - > "{output.mask}" 2>> "{log}"
 echo "masked $(awk '{{s+=$3-$2}} END{{print s+0}}' "{output.mask}") bases below {params.min_depth}x" >> "{log}"
 
 bcftools consensus {params.extra} \
