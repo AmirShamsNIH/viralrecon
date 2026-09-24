@@ -11,23 +11,20 @@ def make_session(target, ref, bams, vcfs, fastas, output):
     root = ET.Element(
         "Session",
         attrib={
-            "genome":   ref,
-            "locus":    "All",
-            "version":  "8",
+            "genome": ref,
+            "locus": "All",
+            "version": "8",
         },
     )
 
     resources = ET.SubElement(root, "Resources")
 
-    # Reference FASTA
     ET.SubElement(resources, "Resource", path=ref)
 
-    # BAMs
     for bam in bams:
         name = os.path.basename(bam).replace(".bowtie2_map.", ".").split(".bam")[0]
         ET.SubElement(resources, "Resource", path=bam, name=name)
 
-    # VCFs
     for vcf in vcfs:
         name = (
             os.path.basename(vcf)
@@ -36,7 +33,6 @@ def make_session(target, ref, bams, vcfs, fastas, output):
         )
         ET.SubElement(resources, "Resource", path=vcf, name=name + " (variants)")
 
-    # Consensus FASTAs
     for fa in (fastas or []):
         name = os.path.basename(fa).split(".consensus.fa")[0]
         ET.SubElement(resources, "Resource", path=fa, name=name + " (consensus)")
@@ -50,11 +46,11 @@ def make_session(target, ref, bams, vcfs, fastas, output):
             panel,
             "Track",
             attrib={
-                "id":          bam,
-                "name":        sample,
-                "type":        "ALIGNMENT",
+                "id": bam,
+                "name": sample,
+                "type": "ALIGNMENT",
                 "displayMode": "SQUISHED",
-                "visible":     "true",
+                "visible": "true",
             },
         )
 
@@ -64,11 +60,11 @@ def make_session(target, ref, bams, vcfs, fastas, output):
             panel,
             "Track",
             attrib={
-                "id":          vcf,
-                "name":        sample + " variants",
-                "type":        "VARIANT",
+                "id": vcf,
+                "name": sample + " variants",
+                "type": "VARIANT",
                 "displayMode": "EXPANDED",
-                "visible":     "true",
+                "visible": "true",
             },
         )
 
@@ -78,11 +74,11 @@ def make_session(target, ref, bams, vcfs, fastas, output):
             panel,
             "Track",
             attrib={
-                "id":          fa,
-                "name":        sample + " consensus",
-                "type":        "SEQUENCE",
+                "id": fa,
+                "name": sample + " consensus",
+                "type": "SEQUENCE",
                 "displayMode": "EXPANDED",
-                "visible":     "true",
+                "visible": "true",
             },
         )
 
@@ -95,13 +91,13 @@ def make_session(target, ref, bams, vcfs, fastas, output):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--target",  required=True)
-    ap.add_argument("--ref",     required=True)
-    ap.add_argument("--bams",    nargs="+", required=True)
-    ap.add_argument("--vcfs",    nargs="+", required=True)
-    ap.add_argument("--fastas",  nargs="+", default=[],
+    ap.add_argument("--target", required=True)
+    ap.add_argument("--ref", required=True)
+    ap.add_argument("--bams", nargs="+", required=True)
+    ap.add_argument("--vcfs", nargs="+", required=True)
+    ap.add_argument("--fastas", nargs="+", default=[],
                     help="Per-sample consensus FASTA files (optional)")
-    ap.add_argument("--output",  required=True)
+    ap.add_argument("--output", required=True)
     args = ap.parse_args()
     make_session(args.target, args.ref, args.bams, args.vcfs, args.fastas, args.output)
 

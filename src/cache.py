@@ -35,14 +35,12 @@ def missing_images(images_config, sif_cache):
 def pull_images(sif_cache, uris_to_pull):
     """Pull each missing image from its Docker URI and save as a local SIF."""
     for name, uri, sif_path in uris_to_pull:
-        print("Pulling '{}'\n  → {}".format(uri, sif_path))
+        print("Pulling '{}'\n  -> {}".format(uri, sif_path))
         try:
             subprocess.check_call(['singularity', 'pull', '--force', sif_path, uri])
         except subprocess.CalledProcessError as e:
             err("Warning: failed to pull '{}': {}".format(uri, e))
 
-
-# Entry-point called by the CLI
 
 def cache(sub_args, repo_path):
     """Entry point for `viralrecon cache`: pull every image in config/containers.json."""

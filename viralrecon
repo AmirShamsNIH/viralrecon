@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 """
-viralrecon  ·  Viral Variation Analysis Pipeline
-=================================================
+viralrecon: viral variation analysis pipeline
+
 Usage:
   viralrecon build   --virus <V> --accession <ACC> -o <REF_DIR> [options]
   viralrecon run     -i <FASTQ [...]> -o <DIR> --genome <genome.json> [options]
@@ -13,8 +13,7 @@ Usage:
 
 Typical workflow
 ----------------
-  # 1. Build reference(s), run once per accession
-  #    Every tool runs from a pinned Singularity image; no module load needed.
+  # 1. Build reference(s), once per accession
   viralrecon build --virus MARBURG --accession KM261523.1 --output /data/refs
   viralrecon build --virus SARS    --accession NC_045512.2 --output /data/refs
 
@@ -30,28 +29,24 @@ _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
 
 from src import version
-import src.run     as _run
-import src.cache   as _cache
+import src.run as _run
+import src.cache as _cache
 import src.install as _install
-import src.build   as _build
-import src.utils   as utils
+import src.build as _build
+import src.utils as utils
 
 
 def _shared(p):
-    p.add_argument("-d", "--dry-run",  action="store_true",
+    p.add_argument("-d", "--dry-run", action="store_true",
                    help="Preview DAG without running jobs.")
-    p.add_argument("-v", "--verbose",  action="store_true",
+    p.add_argument("-v", "--verbose", action="store_true",
                    help="Pass --verbose to Snakemake.")
     p.add_argument("--overwrite-pipeline-template", action="store_true",
                    help="Re-copy config/ and resources/ from the repo into an "
                         "existing --output directory, discarding local edits "
-                        "made there. workflow/ always refreshes; config/ does "
-                        "not, so use this after changing config templates in "
-                        "the repo (e.g. a new rule parameter).")
+                        "there. workflow/ is always refreshed.")
     return p
 
-
-# ── viralrecon build ──────────────────────────────────────────────────────────
 
 def _sub_build(sub):
     presets = ", ".join(sorted(_build.VIRUS_PRESETS))
@@ -65,7 +60,7 @@ def _sub_build(sub):
             "samtools dict, snpEff), and register the target in\n"
             "--output/genome.json.\n\n"
             "All tools run from pinned Singularity images listed in\n"
-            "config/containers.json - no cluster modules are required.\n\n"
+            "config/containers.json; no cluster modules are required.\n\n"
             "Built-in presets (--virus only, no --accession needed):\n"
             "  {presets}\n\n"
             "Examples:\n"
@@ -77,7 +72,7 @@ def _sub_build(sub):
             "                   --fasta /local/sars.fa \\\n"
             "                   --annotation /local/genes.gff \\\n"
             "                   --output /data/refs\n\n"
-            "  # Multiple accessions → one genome.json\n"
+            "  # Multiple accessions, one genome.json\n"
             "  for acc in KM261523.1 FJ217161.1 NC_045512.2; do\n"
             "    viralrecon build --accession $acc --output /data/refs\n"
             "  done\n\n"
@@ -86,44 +81,44 @@ def _sub_build(sub):
             "                 --genome /data/refs/genome.json\n"
         ).format(presets=presets),
     )
-    p.add_argument("--virus",       default=None, metavar="VIRUS",
+    p.add_argument("--virus", default=None, metavar="VIRUS",
                    help=(
                        "Virus short name (e.g. SARS, MPOX, MARBURG). "
                        "Combined with --accession to form the unique target name "
                        "VIRUS_ACCESSION.  Optional when --accession alone identifies "
                        "a built-in preset."
                    ))
-    p.add_argument("--taxid",       default=None, metavar="TAXID",
+    p.add_argument("--taxid", default=None, metavar="TAXID",
                    help=(
                        "NCBI taxid for this virus. Looked up automatically from "
                        "the accession; give it explicitly for a local "
                        "FASTA/annotation pair so the Kraken2 composition "
                        "profile can report this target's share of the library."
                    ))
-    p.add_argument("--force",       action="store_true",
+    p.add_argument("--force", action="store_true",
                    help=(
                        "Rebuild even when the target is already registered and "
                        "all its files are present. Without this, a complete "
                        "reference is verified and skipped."
                    ))
-    p.add_argument("--name",        default=None, metavar="NAME",
+    p.add_argument("--name", default=None, metavar="NAME",
                    help=(
                        "Target name when building from --fasta/--annotation. "
                        "Appears in every output path and in genome.json. "
                        "Defaults to --virus if given."
                    ))
-    p.add_argument("--accession",   default=None, metavar="ACCESSION",
+    p.add_argument("--accession", default=None, metavar="ACCESSION",
                    help="NCBI accession (e.g. NC_045512.2).  "
                         "Optional when --virus matches a built-in preset.")
-    p.add_argument("--fasta",       default=None, metavar="FASTA",
+    p.add_argument("--fasta", default=None, metavar="FASTA",
                    help="Local FASTA file to use instead of downloading from NCBI.")
-    p.add_argument("--annotation",  default=None, metavar="GFF/GTF",
+    p.add_argument("--annotation", default=None, metavar="GFF/GTF",
                    help="Local GFF3 or GTF annotation file to use instead of downloading.")
     p.add_argument("--no-nextclade", action="store_true", default=False,
                    help="Do not attach a Nextclade dataset. By default one is "
                         "matched from the FASTA with `nextclade sort`, and lineage "
                         "is skipped when nothing matches.")
-    p.add_argument("--notes",       default=None, metavar="TEXT",
+    p.add_argument("--notes", default=None, metavar="TEXT",
                    help="Curated note about this reference, stored in "
                         "genome.json and echoed whenever a run selects the "
                         "target (e.g. \"contains long N runs, do not use for "
@@ -135,16 +130,14 @@ def _sub_build(sub):
                        "DIR/VIRUS_ACCESSION/ and the genome.json is written "
                        "into DIR/genome.json."
                    ))
-    p.add_argument("--platform",    default=None,
+    p.add_argument("--platform", default=None,
                    choices=["BIOWULF", "BIGSKY", "SKYLINE"],
                    help="Platform whose filesystem holds the reference (default: BIOWULF).")
-    p.add_argument("--no-index",    action="store_true", default=False,
+    p.add_argument("--no-index", action="store_true", default=False,
                    help="Skip indexing: download FASTA + GFF only.")
     p.set_defaults(func=_build.build)
     return p
 
-
-# ── viralrecon run ────────────────────────────────────────────────────────────
 
 def _sub_run(sub):
     p = sub.add_parser(
@@ -157,43 +150,41 @@ def _sub_run(sub):
             "Pass the genome.json produced by that command via --genome.\n"
         ),
     )
-    p.add_argument("-i", "--input",  required=True, nargs="+", metavar="FASTQ",
+    p.add_argument("-i", "--input", required=True, nargs="+", metavar="FASTQ",
                    help="Input FASTQ file(s). R1/R2 pairs are auto-detected.")
     p.add_argument("-o", "--output", required=True, metavar="DIR",
                    help="Output directory (created if absent).")
-    p.add_argument("--genome",    required=True, metavar="genome.json",
+    p.add_argument("--genome", required=True, metavar="genome.json",
                    help=(
                        "Path to the genome.json produced by 'viralrecon build'. "
                        "All targets registered in that file are analysed unless "
                        "--targets is also given."
                    ))
-    p.add_argument("--targets",   nargs="+", metavar="TARGET", default=None,
+    p.add_argument("--targets", nargs="+", metavar="TARGET", default=None,
                    help=(
                        "Run against a subset of the targets in genome.json "
                        "(e.g. MARBURG_KM261523.1 SARS_NC_045512.2). "
                        "Defaults to ALL targets in genome.json."
                    ))
-    p.add_argument("--config",    default=None, metavar="JSON",
+    p.add_argument("--config", default=None, metavar="JSON",
                    help="Alternate config.json (default: config/config.json).")
-    p.add_argument("--platform",  default="BIOWULF",
+    p.add_argument("--platform", default="BIOWULF",
                    choices=["BIOWULF", "BIGSKY", "SKYLINE"],
                    help="HPC platform (default: BIOWULF).")
-    p.add_argument("--mode",      default="slurm",
+    p.add_argument("--mode", default="slurm",
                    choices=["slurm", "local"],
                    help="Execution mode (default: slurm).")
-    p.add_argument("--local",     action="store_true",
+    p.add_argument("--local", action="store_true",
                    help="Shorthand for --mode local.")
     p.add_argument("-j", "--jobs", type=int, default=500,
                    help="Max simultaneous SLURM jobs (default: 500).")
     p.add_argument("--sif-cache", default=None, metavar="DIR",
                    help="Directory for Singularity SIF images.")
-    p.add_argument("--silent",    action="store_true")
+    p.add_argument("--silent", action="store_true")
     _shared(p)
     p.set_defaults(func=_run.run)
     return p
 
-
-# ── other subcommands ─────────────────────────────────────────────────────────
 
 def _sub_unlock(sub):
     p = sub.add_parser("unlock", help="Unlock a stuck output directory.")
@@ -218,8 +209,6 @@ def _sub_install(sub):
     return p
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
-
 def main():
     ap = argparse.ArgumentParser(
         prog="viralrecon",
@@ -241,7 +230,7 @@ def main():
     if getattr(args, "local", False):
         args.mode = "local"
 
-    # Expand shell globs in --input
+    # Globs that reached us quoted are expanded here.
     if getattr(args, "input", None):
         expanded = []
         for pat in args.input:

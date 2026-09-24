@@ -1,10 +1,7 @@
 $schema: "http://json-schema.org/draft-07/schema#"
 description: >
-  Structure of the merged run configuration. This exists because a missing or
-  mistyped key used to surface as a KeyError deep inside a rule, on a compute
-  node, minutes or hours into a run - the failure mode hit repeatedly while
-  adding parameters. Validation runs at DAG-build time, before anything is
-  submitted, and names the offending key.
+  Structure of the merged run configuration, checked at DAG-build time so a
+  missing or mistyped key is named before anything is submitted.
 
 type: object
 required: [options, project, samples, references, images, parameters]
@@ -31,9 +28,8 @@ properties:
   images:
     type: object
     description: >
-      Tool name to container image path. Every rule with a shell body reads one
-      of these; a missing entry fails the whole workflow at parse time rather
-      than when that rule is first scheduled.
+      Tool name to container image path. A missing entry fails at parse time,
+      not when the rule that needs it is first scheduled.
 
   references:
     type: object
@@ -54,10 +50,8 @@ properties:
           kraken2_decon_taxids:
             type: string
             description: >
-              Space-separated root taxids to subtract, with descendants.
-              Depletion is subtractive by taxon on purpose: the target virus is
-              in the database and comes back classified, so a keep-unclassified
-              filter would discard exactly the reads of interest.
+              Root taxids to subtract with descendants. The target virus is in the
+              database, so keeping only unclassified reads would discard it.
           krona_taxonomy: {type: string}
 
       alignment:
@@ -77,10 +71,8 @@ properties:
           min_genome_coverage:
             type: string
             description: >
-              Fraction of the reference that must reach consensus_min_depth
-              before a target is trusted. Catches what a read count cannot: a
-              divergent reference can attract millions of cross-mapping reads
-              and still leave most of the genome uncovered.
+              Fraction of the reference that must reach consensus_min_depth. A
+              divergent reference can draw many reads yet leave most of it uncovered.
 
       report:
         type: object
@@ -92,7 +84,5 @@ properties:
           nextclade:
             type: string
             description: >
-              Extra flags for `nextclade run`. There is no target list here:
-              nextclade is gated on whether a reference carries a
-              nextclade_dataset path in genome.json, which is what lets the
-              stage work for any virus that has a dataset.
+              Extra flags for `nextclade run`. It runs for any target whose
+              genome.json entry carries a nextclade_dataset.

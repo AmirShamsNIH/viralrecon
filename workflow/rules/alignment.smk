@@ -4,44 +4,42 @@ from os.path import join
 from scripts.common import allocated
 
 
-# ── bowtie2_map ───────────────────────────────────────────────────────────────
-
 rule bowtie2_map:
     """Align depleted reads to a target with Bowtie2, sort, and drop unmapped, secondary
     and supplementary records. The raw flagstat is taken before that filter."""
     input:
-        r1  = join(WORKPATH, "{sample}", "pre_process",
-                   "{sample}.kraken2_decon.R1.fastq.gz"),
-        r2  = join(WORKPATH, "{sample}", "pre_process",
-                   "{sample}.kraken2_decon.R2.fastq.gz") if PAIRED else [],
+        r1 = join(WORKPATH, "{sample}", "pre_process",
+                  "{sample}.kraken2_decon.R1.fastq.gz"),
+        r2 = join(WORKPATH, "{sample}", "pre_process",
+                  "{sample}.kraken2_decon.R2.fastq.gz") if PAIRED else [],
         bt2 = join(WORKPATH, "ref_db", "{target}", "{target}.1.bt2"),
     output:
         # Handed to mark_duplicates, which produces the canonical
         # {sample}.{target}.bowtie2_map.bam that everything downstream reads.
-        bam     = temp(join(WORKPATH, "{sample}", "alignment", "{target}",
-                       "{sample}.{target}.aligned.bam")),
-        bai     = temp(join(WORKPATH, "{sample}", "alignment", "{target}",
-                       "{sample}.{target}.aligned.bam.bai")),
-        raw_stat  = join(WORKPATH, "{sample}", "alignment", "{target}",
-                         "{sample}.{target}.bowtie2_map.raw.flagstat"),
+        bam = temp(join(WORKPATH, "{sample}", "alignment", "{target}",
+                        "{sample}.{target}.aligned.bam")),
+        bai = temp(join(WORKPATH, "{sample}", "alignment", "{target}",
+                        "{sample}.{target}.aligned.bam.bai")),
+        raw_stat = join(WORKPATH, "{sample}", "alignment", "{target}",
+                        "{sample}.{target}.bowtie2_map.raw.flagstat"),
     params:
-        rname       = "bowtie2_map",
-        paired      = PAIRED,
-        extra_bt2   = config["parameters"]["alignment"]["bowtie2_map"],
-        extra_picard= config["parameters"]["alignment"]["picard_markdup"],
-        filt        = config["parameters"]["alignment"].get("samtools_filter", "-F 0x004"),
-        min_mapped  = config["parameters"]["alignment"].get("min_mapped_reads", "1000"),
-        idx         = join(WORKPATH, "ref_db", "{target}", "{target}"),
-        outdir      = join(WORKPATH, "{sample}", "alignment", "{target}"),
-        tmpbam      = join(WORKPATH, "{sample}", "alignment", "{target}",
-                           "{sample}.{target}.raw.bam"),
+        rname = "bowtie2_map",
+        paired = PAIRED,
+        extra_bt2 = config["parameters"]["alignment"]["bowtie2_map"],
+        extra_picard = config["parameters"]["alignment"]["picard_markdup"],
+        filt = config["parameters"]["alignment"].get("samtools_filter", "-F 0x004"),
+        min_mapped = config["parameters"]["alignment"].get("min_mapped_reads", "1000"),
+        idx = join(WORKPATH, "ref_db", "{target}", "{target}"),
+        outdir = join(WORKPATH, "{sample}", "alignment", "{target}"),
+        tmpbam = join(WORKPATH, "{sample}", "alignment", "{target}",
+                      "{sample}.{target}.raw.bam"),
     log:
         join(WORKPATH, "logfiles", "alignment",
              "{sample}.{target}.bowtie2_map.log"),
     resources:
         partition = allocated("partition", "bowtie2_map", cluster),
-        mem       = allocated("mem",       "bowtie2_map", cluster),
-        time      = allocated("time",      "bowtie2_map", cluster),
+        mem = allocated("mem", "bowtie2_map", cluster),
+        time = allocated("time", "bowtie2_map", cluster),
     threads:
         int(allocated("threads", "bowtie2_map", cluster))
     container:
@@ -51,7 +49,6 @@ set -euo pipefail
 
 mkdir -p "$(dirname "{output.bam}")"
 
-# Align (with read-group) → sort → mark duplicates
 if [ "{params.paired}" = "True" ]; then
     bowtie2 {params.extra_bt2} --threads {threads} \\
         --rg-id "{wildcards.sample}" --rg "LB:{wildcards.sample}" \\
@@ -70,10 +67,10 @@ fi
 
 samtools index "{params.tmpbam}" >> "{log}" 2>&1
 
-# ── Pre-filter flagstat: the only view of the real mapping rate ────────────
+# The pre-filter flagstat is the only view of the real mapping rate.
 samtools flagstat --threads {threads} "{params.tmpbam}" > "{output.raw_stat}" 2>> "{log}"
 
-# ── Minimum-mapped-reads gate (warn, never abort the whole run) ────────────
+# Too few mapped reads is a warning, never a reason to abort the run.
 MAPPED=$(awk '/ mapped \(/ && !/primary/ {{print $1; exit}}' "{output.raw_stat}")
 MAPPED=${{MAPPED:-0}}
 if [ "$MAPPED" -lt "{params.min_mapped}" ]; then
@@ -81,15 +78,12 @@ if [ "$MAPPED" -lt "{params.min_mapped}" ]; then
         | tee -a "{log}" > "{params.outdir}/{wildcards.sample}.{wildcards.target}.qc_warn"
 fi
 
-# ── Drop unmapped / secondary / supplementary before anything downstream ───
 samtools view -b {params.filt} -@ {threads} \
     -o "{output.bam}" "{params.tmpbam}" >> "{log}" 2>&1
 samtools index "{output.bam}" >> "{log}" 2>&1
 rm -f "{params.tmpbam}" "{params.tmpbam}.bai"
 """
 
-
-# ── mark_duplicates ───────────────────────────────────────────────────────────
 
 rule mark_duplicates:
     """Produce the canonical alignment BAM, marking duplicates only when
@@ -98,14 +92,14 @@ rule mark_duplicates:
         bam = rules.bowtie2_map.output.bam,
         bai = rules.bowtie2_map.output.bai,
     output:
-        bam       = join(WORKPATH, "{sample}", "alignment", "{target}",
-                         "{sample}.{target}.bowtie2_map.bam"),
-        bai       = join(WORKPATH, "{sample}", "alignment", "{target}",
-                         "{sample}.{target}.bowtie2_map.bam.bai"),
+        bam = join(WORKPATH, "{sample}", "alignment", "{target}",
+                   "{sample}.{target}.bowtie2_map.bam"),
+        bai = join(WORKPATH, "{sample}", "alignment", "{target}",
+                   "{sample}.{target}.bowtie2_map.bam.bai"),
         dupmetric = join(WORKPATH, "{sample}", "alignment", "{target}",
                          "{sample}.{target}.bowtie2_map.dup_metrics.txt"),
     params:
-        rname        = "mark_duplicates",
+        rname = "mark_duplicates",
         extra_picard = config["parameters"]["alignment"]["picard_markdup"],
         skip_markdup = config["parameters"]["alignment"].get("skip_markduplicates", "true"),
     log:
@@ -113,8 +107,8 @@ rule mark_duplicates:
              "{sample}.{target}.mark_duplicates.log"),
     resources:
         partition = allocated("partition", "mark_duplicates", cluster),
-        mem       = allocated("mem",       "mark_duplicates", cluster),
-        time      = allocated("time",      "mark_duplicates", cluster),
+        mem = allocated("mem", "mark_duplicates", cluster),
+        time = allocated("time", "mark_duplicates", cluster),
     threads:
         int(allocated("threads", "mark_duplicates", cluster))
     container:
@@ -139,10 +133,7 @@ fi
 """
 
 
-# ── flagstat_align ────────────────────────────────────────────────────────────
-
 rule flagstat_align:
-    """samtools flagstat on the final aligned BAM."""
     input:
         bam = rules.mark_duplicates.output.bam,
     output:
@@ -155,8 +146,8 @@ rule flagstat_align:
              "{sample}.{target}.flagstat_align.log"),
     resources:
         partition = allocated("partition", "flagstat_align", cluster),
-        mem       = allocated("mem",       "flagstat_align", cluster),
-        time      = allocated("time",      "flagstat_align", cluster),
+        mem = allocated("mem", "flagstat_align", cluster),
+        time = allocated("time", "flagstat_align", cluster),
     threads: 2
     container:
         config["images"]["samtools"]
@@ -166,10 +157,7 @@ samtools flagstat --threads {threads} "{input.bam}" > "{output.stat}" 2>> "{log}
 """
 
 
-# ── idxstats_align ────────────────────────────────────────────────────────────
-
 rule idxstats_align:
-    """samtools idxstats on the final aligned BAM."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
@@ -183,8 +171,8 @@ rule idxstats_align:
              "{sample}.{target}.idxstats_align.log"),
     resources:
         partition = allocated("partition", "idxstats_align", cluster),
-        mem       = allocated("mem",       "idxstats_align", cluster),
-        time      = allocated("time",      "idxstats_align", cluster),
+        mem = allocated("mem", "idxstats_align", cluster),
+        time = allocated("time", "idxstats_align", cluster),
     threads: 1
     container:
         config["images"]["samtools"]
@@ -194,35 +182,33 @@ samtools idxstats "{input.bam}" > "{output.stat}" 2>> "{log}"
 """
 
 
-# ── mosdepth_align ───────────────────────────────────────────────────────────
-
 rule mosdepth_align:
     """Per-base and windowed coverage depth with mosdepth."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
     output:
-        summary  = join(WORKPATH, "{sample}", "alignment", "{target}",
-                        "mosdepth", "{sample}.{target}.mosdepth.summary.txt"),
+        summary = join(WORKPATH, "{sample}", "alignment", "{target}",
+                       "mosdepth", "{sample}.{target}.mosdepth.summary.txt"),
         global_d = join(WORKPATH, "{sample}", "alignment", "{target}",
                         "mosdepth", "{sample}.{target}.mosdepth.global.dist.txt"),
         per_base = join(WORKPATH, "{sample}", "alignment", "{target}",
                         "mosdepth", "{sample}.{target}.per-base.bed.gz"),
         # --by 200 windows feed the MultiQC coverage-across-genome plot.
-        regions  = join(WORKPATH, "{sample}", "alignment", "{target}",
-                        "mosdepth", "{sample}.{target}.regions.bed.gz"),
+        regions = join(WORKPATH, "{sample}", "alignment", "{target}",
+                       "mosdepth", "{sample}.{target}.regions.bed.gz"),
     params:
-        rname  = "mosdepth_align",
+        rname = "mosdepth_align",
         prefix = join(WORKPATH, "{sample}", "alignment", "{target}",
                       "mosdepth", "{sample}.{target}"),
-        extra  = config["parameters"]["alignment"]["mosdepth"],
+        extra = config["parameters"]["alignment"]["mosdepth"],
     log:
         join(WORKPATH, "logfiles", "alignment",
              "{sample}.{target}.mosdepth_align.log"),
     resources:
         partition = allocated("partition", "mosdepth_align", cluster),
-        mem       = allocated("mem",       "mosdepth_align", cluster),
-        time      = allocated("time",      "mosdepth_align", cluster),
+        mem = allocated("mem", "mosdepth_align", cluster),
+        time = allocated("time", "mosdepth_align", cluster),
     threads:
         int(allocated("threads", "mosdepth_align", cluster))
     container:
@@ -235,33 +221,31 @@ mosdepth {params.extra} --threads {threads} \
 """
 
 
-# ── picard_collect_metrics ────────────────────────────────────────────────────
-
 rule picard_collect_metrics:
     """Picard CollectMultipleMetrics: insert size, alignment summary, GC bias."""
     input:
         bam = rules.mark_duplicates.output.bam,
         bai = rules.mark_duplicates.output.bai,
-        fa  = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
     output:
         insert_metrics = join(WORKPATH, "{sample}", "alignment", "{target}",
                               "picard", "{sample}.{target}.insert_size_metrics"),
-        insert_hist    = join(WORKPATH, "{sample}", "alignment", "{target}",
-                              "picard", "{sample}.{target}.insert_size_histogram.pdf"),
-        aln_summary    = join(WORKPATH, "{sample}", "alignment", "{target}",
-                              "picard", "{sample}.{target}.alignment_summary_metrics"),
+        insert_hist = join(WORKPATH, "{sample}", "alignment", "{target}",
+                           "picard", "{sample}.{target}.insert_size_histogram.pdf"),
+        aln_summary = join(WORKPATH, "{sample}", "alignment", "{target}",
+                           "picard", "{sample}.{target}.alignment_summary_metrics"),
     params:
-        rname      = "picard_collect_metrics",
-        prefix     = join(WORKPATH, "{sample}", "alignment", "{target}",
-                          "picard", "{sample}.{target}"),
-        extra      = config["parameters"]["alignment"]["picard_collect_metrics"],
+        rname = "picard_collect_metrics",
+        prefix = join(WORKPATH, "{sample}", "alignment", "{target}",
+                      "picard", "{sample}.{target}"),
+        extra = config["parameters"]["alignment"]["picard_collect_metrics"],
     log:
         join(WORKPATH, "logfiles", "alignment",
              "{sample}.{target}.picard_collect_metrics.log"),
     resources:
         partition = allocated("partition", "picard_collect_metrics", cluster),
-        mem       = allocated("mem",       "picard_collect_metrics", cluster),
-        time      = allocated("time",      "picard_collect_metrics", cluster),
+        mem = allocated("mem", "picard_collect_metrics", cluster),
+        time = allocated("time", "picard_collect_metrics", cluster),
     threads:
         int(allocated("threads", "picard_collect_metrics", cluster))
     container:

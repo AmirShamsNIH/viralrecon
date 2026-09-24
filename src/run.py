@@ -34,16 +34,16 @@ ILLUMINA_R2 = '.R2.fastq.gz'
 ILLUMINA_MATE_RE = re.compile(r'[_\.]R[12][_\.]?\d*\.f(?:ast)?q\.gz')
 
 ILLUMINA_RENAME = {
-    r'\.R1\.f(ast)?q\.gz$':                  ILLUMINA_R1,
-    r'\.R2\.f(ast)?q\.gz$':                  ILLUMINA_R2,
-    r'_R1_\d+\.f(ast)?q\.gz$':               ILLUMINA_R1,  # _R1_001.fastq.gz
-    r'_R2_\d+\.f(ast)?q\.gz$':               ILLUMINA_R2,  # _R2_001.fastq.gz
-    r'\.R1\.(?P<lane>...).f(ast)?q\.gz$':    ILLUMINA_R1,
-    r'\.R2\.(?P<lane>...).f(ast)?q\.gz$':    ILLUMINA_R2,
-    r'_R1\.f(ast)?q\.gz$':                   ILLUMINA_R1,
-    r'_R2\.f(ast)?q\.gz$':                   ILLUMINA_R2,
-    r'_1\.f(ast)?q\.gz$':                    ILLUMINA_R1,
-    r'_2\.f(ast)?q\.gz$':                    ILLUMINA_R2,
+    r'\.R1\.f(ast)?q\.gz$': ILLUMINA_R1,
+    r'\.R2\.f(ast)?q\.gz$': ILLUMINA_R2,
+    r'_R1_\d+\.f(ast)?q\.gz$': ILLUMINA_R1,  # _R1_001.fastq.gz
+    r'_R2_\d+\.f(ast)?q\.gz$': ILLUMINA_R2,  # _R2_001.fastq.gz
+    r'\.R1\.(?P<lane>...).f(ast)?q\.gz$': ILLUMINA_R1,
+    r'\.R2\.(?P<lane>...).f(ast)?q\.gz$': ILLUMINA_R2,
+    r'_R1\.f(ast)?q\.gz$': ILLUMINA_R1,
+    r'_R2\.f(ast)?q\.gz$': ILLUMINA_R2,
+    r'_1\.f(ast)?q\.gz$': ILLUMINA_R1,
+    r'_2\.f(ast)?q\.gz$': ILLUMINA_R2,
 }
 
 
@@ -138,7 +138,7 @@ def _sym_safe(input_files, target, input_dirname='inputs'):
     collision = {}
     for f in input_files:
         new_name = _rename_fastq(os.path.basename(f))
-        dst      = os.path.join(input_dir, new_name)
+        dst = os.path.join(input_dir, new_name)
         renamed.append(dst)
         collision.setdefault(new_name, []).append(f)
 
@@ -169,16 +169,14 @@ def setup(sub_args, ifiles, repo_path, output_path):
     config = join_jsons(template_files)
     config['project'] = {}
 
-    # User / environment metadata
     home = os.path.expanduser('~')
     config['project']['userhome'] = home
     config['project']['username'] = os.path.split(home)[-1]
-    config['project']['version']  = __version__
+    config['project']['version'] = __version__
     config['project']['git_commit_hash'] = git_commit_hash(repo_path)
-    config['project']['pipeline_path']   = repo_path
-    config['project']['workpath']        = os.path.abspath(output_path)
+    config['project']['pipeline_path'] = repo_path
+    config['project']['workpath'] = os.path.abspath(output_path)
 
-    # Input samples
     samples = []
     for f in ifiles:
         s = _strip_sample(f)
@@ -186,20 +184,17 @@ def setup(sub_args, ifiles, repo_path, output_path):
             samples.append(s)
     config['samples'] = samples
 
-    # Paired-end check
     has_r2 = any(os.path.basename(f).endswith(ILLUMINA_R2) for f in ifiles)
     if has_r2:
         _verify_mates(ifiles)
     config['project']['paired'] = has_r2
 
-    # Raw-data bind paths for Singularity
     rawdata_dirs = list({
         os.path.dirname(os.path.abspath(os.path.realpath(f)))
         for f in (sub_args.input or [])
     })
     config['project']['datapath'] = ','.join(rawdata_dirs)
 
-    # Target selection: driven by the genome.json from 'viralrecon build'
     platform = getattr(sub_args, 'platform', 'BIOWULF')
 
     genome_json_path = getattr(sub_args, 'genome', None)
@@ -234,7 +229,6 @@ def setup(sub_args, ifiles, repo_path, output_path):
         # Record the genome directory for Singularity bind-path resolution
         config['project']['genomepath'] = os.path.dirname(genome_json_path)
 
-        # Honour --targets subset if given, otherwise use everything in genome.json
         requested = getattr(sub_args, 'targets', None) or []
         if requested:
             unknown = [t for t in requested if t not in build_refs]
@@ -255,7 +249,7 @@ def setup(sub_args, ifiles, repo_path, output_path):
             if _n:
                 print("  note [{}]: {}".format(_t, _n))
     else:
-        # Fallback: legacy mode, look up targets in the pipeline's own genome.json
+        # Without --genome, targets come from the pipeline's own genome.json.
         config['project']['genomepath'] = ''
         all_targets = list(
             config.get('references', {}).get('target', {}).get(platform, {}).keys()
@@ -274,7 +268,6 @@ def setup(sub_args, ifiles, repo_path, output_path):
         else:
             config['targets'] = all_targets
 
-    # CLI options
     config.setdefault('options', {})
     for opt, val in vars(sub_args).items():
         if opt == 'func':
@@ -290,24 +283,19 @@ def setup(sub_args, ifiles, repo_path, output_path):
     _apply_platform_paths(config, platform)
     _apply_platform_partition(output_path, platform)
 
-    # Bind paths for Singularity (kept for container-mode runs)
     config['bindpaths'] = _resolve_bind_paths(sub_args, config)
 
-    # ── Slim the config before writing ────────────────────────────────────────
     # Keep only fields the workflow reads, so the file stays auditable by hand.
 
-    # options: only what the Snakefile reads
     _WORKFLOW_OPTS = {"output", "platform"}
     config["options"] = {k: v for k, v in config.get("options", {}).items()
                          if k in _WORKFLOW_OPTS}
 
-    # project: only paired is consumed by the workflow
     config["project"] = {"paired": config.get("project", {}).get("paired", False)}
 
-    # Remove the pipeline-stage metadata block (rule names, execution order)
     config.pop("pipeline", None)
 
-    # Drop references, tools, and paths for the non-active platform
+    # Drop other platforms' references.
     for section in ("target", "contamination", "kraken2"):
         refs = config.get("references", {}).get(section, {})
         for plat in list(refs.keys()):
@@ -372,7 +360,6 @@ def _resolve_bind_paths(sub_args, config):
         if raw:
             paths.add(os.path.realpath(raw))
 
-    # Bind the pre-built reference directory so Singularity can see it
     genomepath = config['project'].get('genomepath', '')
     if genomepath:
         paths.add(os.path.realpath(genomepath))
@@ -386,7 +373,6 @@ def _resolve_bind_paths(sub_args, config):
 
 
 def build_config(sub_args, pl_home):
-    """Top-level: initialise output dir, build config, return it."""
     ifiles = init(
         repo_path=pl_home,
         output_path=sub_args.output,
@@ -447,7 +433,7 @@ def launch_pipeline(sub_args, bindpaths, pl_home, pl_name):
             tmp_dir=getattr(sub_args, 'tmp_dir', None) or os.path.join(sub_args.output, 'tmp'),
         )
         if not getattr(sub_args, 'silent', False):
-            print("\nRunning {} pipeline in '{}' mode …".format(pl_name, sub_args.mode))
+            print("\nRunning {} pipeline in '{}' mode ...".format(pl_name, sub_args.mode))
         mjob.wait()
 
     return mjob
@@ -518,24 +504,19 @@ def _runner(mode, outdir, alt_cache, logger, additional_bind_paths='',
         fatal("Unknown execution mode: '{}'.".format(mode))
 
 
-# Entry-point functions called by the CLI
-
 def run(sub_args, repo_path):
     """Entry point for `viralrecon run`: build the config, optionally dry-run, then launch."""
     pl_name = 'viralrecon'
 
-    # 1. Initialise output directory and assemble config
     config = build_config(sub_args, repo_path)
     save_config(config, sub_args.output)
 
-    # 2. Dry-run only
     if getattr(sub_args, 'dry_run', False):
         out = dryrun(sub_args.output)
         if out:
             print(out.decode('utf-8'))
         return
 
-    # 3. Real run
     bindpaths = config.get('bindpaths', [])
     mjob = launch_pipeline(sub_args, bindpaths, repo_path, pl_name)
     report_outcome(sub_args, mjob, pl_name)

@@ -9,7 +9,7 @@ _RUN_MARKER = "=== viralrecon run started"
 
 _CURRENT_SLICE = r"""
 CURRENT=$(mktemp)
-awk -v m="{marker}" 'index($0, m)==1 {{buf=""}} {{buf = buf $0 ORS}} END {{printf "%s", buf}}'     "{log}" > "$CURRENT" 2>/dev/null || : > "$CURRENT"
+awk -v m="{marker}" 'index($0, m)==1 {{buf=""}} {{buf = buf $0 ORS}} END {{printf "%s", buf}}' "{log}" > "$CURRENT" 2>/dev/null || : > "$CURRENT"
 """.replace("{marker}", _RUN_MARKER)
 
 _JOBBY = r"""
@@ -43,14 +43,14 @@ onstart:
         '  SLURM job ${{SLURM_JOB_ID:-unknown}} ===" >> "%s"\n'
         'touch RUNNING\n' % (_MASTER_ERR, _RUN_MARKER, _MASTER_LOG)
     )
-    print("\n▶  viralrecon pipeline started.\n")
+    print("\nviralrecon pipeline started.\n")
 
 
 onsuccess:
     shell(_CURRENT_SLICE.replace("{log}", _MASTER_LOG)
           + _JOBBY.replace("{log}", _MASTER_LOG)
           + "\ntouch COMPLETED\n")
-    print("\n✓  viralrecon pipeline completed successfully.\n"
+    print("\nviralrecon pipeline completed successfully.\n"
           "   Sentinel:  COMPLETED\n"
           "   Resources: job_information_<timestamp>.tsv\n")
 
@@ -83,7 +83,7 @@ onerror:
           + _JOBBY.replace("{log}", _MASTER_LOG)
           + _ERR_REPORT.replace("{err}", _MASTER_ERR)
           + "\ntouch FAILED\n")
-    print("\n✗  viralrecon pipeline failed.\n"
+    print("\nviralrecon pipeline failed.\n"
           "   Sentinel:  FAILED\n"
           "   What broke: logfiles/master.err\n"
           "   Failures:  failed_jobs_<timestamp>.tsv\n"

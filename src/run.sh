@@ -3,15 +3,15 @@
 # Usage: run.sh slurm -j <jobname> -b <bindpaths> -o <outdir> -c <cache> -t <tmpdir>
 set -euo pipefail
 
-MODE="$1"; shift
+MODE="$1"
+shift
 
 JOBNAME="viralrecon"
-# Paths that must be visible inside every container: the run itself, the
-# reference/image tree, and node-local scratch.
+# Fallback binds when -b is not given: the reference/image tree and /fdb.
 BINDPATHS="/data/RTB_GRS,/fdb"
 OUTDIR=""
 CACHEDIR=""
-TMPDIR=""            # defaults to ${OUTDIR}/tmp once OUTDIR is known
+TMPDIR=""  # defaults to ${OUTDIR}/tmp once OUTDIR is known
 
 while getopts "j:b:o:c:t:" opt; do
     case "$opt" in
@@ -20,7 +20,10 @@ while getopts "j:b:o:c:t:" opt; do
         o) OUTDIR="$OPTARG" ;;
         c) CACHEDIR="$OPTARG" ;;
         t) TMPDIR="$OPTARG" ;;
-        *) echo "Unknown option: $opt" >&2; exit 1 ;;
+        *)
+            echo "Unknown option: $opt" >&2
+            exit 1
+            ;;
     esac
 done
 

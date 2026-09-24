@@ -11,8 +11,6 @@ import shutil
 from os.path import basename, exists, join
 
 
-# ── small readers ────────────────────────────────────────────────────────────
-
 def _copy(src, dstdir, newname=None):
     if not exists(src):
         return None
@@ -62,8 +60,6 @@ def count_ns(fasta):
 def genome_length(fai_path):
     """Reference length from the .fa.fai (sum of all sequence lengths)."""
     total = 0
-    for r in read_tsv_rows(fai_path):
-        pass  # .fai has no header; parsed manually below
     if not exists(fai_path):
         return 0
     with open(fai_path) as fh:
@@ -157,8 +153,6 @@ def count_variants(vcf_gz, sample):
         return ""
 
 
-# ── main ─────────────────────────────────────────────────────────────────────
-
 COLUMNS = [
     "sample", "target",
     "input_read_pairs", "pct_viral", "pct_target", "pct_human", "pct_depleted",
@@ -203,7 +197,7 @@ def main():
         tdir = join(FR, target)
         tgt_failures = target_failures(FR, target)
         cons_d, lin_d = join(tdir, "consensus"), join(tdir, "lineage")
-        var_d,  qc_d  = join(tdir, "variants"),  join(tdir, "qc")
+        var_d, qc_d = join(tdir, "variants"), join(tdir, "qc")
         for d in (cons_d, var_d, qc_d):
             os.makedirs(d, exist_ok=True)
         # lineage/ only for targets the stage applies to: an empty directory reads as
@@ -262,7 +256,7 @@ def main():
                 join(al, "%s.%s.bowtie2_map.flagstat" % (s, target)))
             # Breadth, not just depth: cross-mapping reads can pile into conserved
             # regions of a divergent reference while most of it stays uncovered.
-            glen   = genome_length(join(W, "ref_db", target, "%s.fa.fai" % target))
+            glen = genome_length(join(W, "ref_db", target, "%s.fa.fai" % target))
             masked = count_ns(cons)
             covered = ""
             reasons = []
@@ -281,10 +275,10 @@ def main():
             rows.append({
                 "sample": s, "target": target,
                 "input_read_pairs": summ[0].get("total_reads", "") if summ else "",
-                "pct_viral":      k.get("10239", ""),
-                "pct_target":     k.get(target_taxid.get(target, ""), ""),
-                "pct_human":      k.get("9606", ""),
-                "pct_depleted":   summ[0].get("depleted_pct", "") if summ else "",
+                "pct_viral": k.get("10239", ""),
+                "pct_target": k.get(target_taxid.get(target, ""), ""),
+                "pct_human": k.get("9606", ""),
+                "pct_depleted": summ[0].get("depleted_pct", "") if summ else "",
                 "mapped_reads": mapped, "mapped_pct": mpct,
                 "reads_used": used, "qc_status": qc,
                 "mean_depth": mosdepth_mean(

@@ -9,12 +9,11 @@ import sys
 
 
 def parse_flagstat(path):
-    """Return a dict of key metrics from a samtools flagstat file."""
     metrics = {
-        "total_reads":      0,
-        "mapped_reads":     0,
-        "mapped_pct":       "0.00%",
-        "properly_paired":  0,
+        "total_reads": 0,
+        "mapped_reads": 0,
+        "mapped_pct": "0.00%",
+        "properly_paired": 0,
     }
     try:
         with open(path) as fh:
@@ -26,7 +25,7 @@ def parse_flagstat(path):
                 m = re.match(r"(\d+) \+ \d+ mapped \((.+?)\)", line)
                 if m:
                     metrics["mapped_reads"] = int(m.group(1))
-                    metrics["mapped_pct"]   = m.group(2).split(":")[0].strip()
+                    metrics["mapped_pct"] = m.group(2).split(":")[0].strip()
                 m = re.match(r"(\d+) \+ \d+ properly paired", line)
                 if m:
                     metrics["properly_paired"] = int(m.group(1))
@@ -50,22 +49,22 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--flagstats", nargs="+", required=True,
                     metavar="FILE", help="samtools flagstat files")
-    ap.add_argument("--output",    required=True,
-                    metavar="TSV",  help="output TSV path")
-    ap.add_argument("--target",    required=True,
+    ap.add_argument("--output", required=True,
+                    metavar="TSV", help="output TSV path")
+    ap.add_argument("--target", required=True,
                     metavar="NAME", help="viral target name")
     args = ap.parse_args()
 
     rows = []
     for fs in sorted(args.flagstats):
-        sample  = sample_name(fs, args.target)
+        sample = sample_name(fs, args.target)
         metrics = parse_flagstat(fs)
         rows.append({
-            "sample":          sample,
-            "target":          args.target,
-            "total_reads":     metrics["total_reads"],
-            "mapped_reads":    metrics["mapped_reads"],
-            "mapped_pct":      metrics["mapped_pct"],
+            "sample": sample,
+            "target": args.target,
+            "total_reads": metrics["total_reads"],
+            "mapped_reads": metrics["mapped_reads"],
+            "mapped_pct": metrics["mapped_pct"],
             "properly_paired": metrics["properly_paired"],
         })
 
@@ -78,7 +77,7 @@ def main():
         for r in rows:
             out.write("\t".join(str(r[h]) for h in header) + "\n")
 
-    print(f"[collect_report] Wrote {len(rows)} rows → {args.output}",
+    print(f"[collect_report] Wrote {len(rows)} rows -> {args.output}",
           file=sys.stderr)
 
 

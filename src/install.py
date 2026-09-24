@@ -35,8 +35,6 @@ def assemble_target(sub_args, chunks):
     print("Assemble target: {}".format(chunks))
 
 
-# Entry-point called by the CLI
-
 def install(sub_args, repo_path):
     """Entry point for `viralrecon install`: download data defined in config/install.json."""
     cfg = read_install_config(repo_path)

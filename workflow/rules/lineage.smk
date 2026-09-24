@@ -5,14 +5,12 @@ from os.path import join
 from scripts.common import allocated
 
 
-# ── nextclade_clade ───────────────────────────────────────────────────────────
-
 rule nextclade_clade:
     """Nextclade clade assignment, QC and mutation calling against the dataset fetched
     at build time, since compute nodes cannot reliably download it."""
     input:
-        fa      = join(WORKPATH, "{sample}", "variant_calling", "{target}",
-                       "{sample}.{target}.consensus.fa"),
+        fa = join(WORKPATH, "{sample}", "variant_calling", "{target}",
+                  "{sample}.{target}.consensus.fa"),
     output:
         tsv = join(WORKPATH, "{sample}", "lineage", "{target}",
                    "{sample}.{target}.nextclade.tsv"),
@@ -21,17 +19,17 @@ rule nextclade_clade:
         csv = join(WORKPATH, "{sample}", "lineage", "{target}",
                    "{sample}.{target}.nextclade.csv"),
     params:
-        rname      = "nextclade_clade",
+        rname = "nextclade_clade",
         dataset_dir = lambda wc: nextclade_dataset_for(wc.target),
-        outdir      = join(WORKPATH, "{sample}", "lineage", "{target}"),
-        extra       = config["parameters"]["lineage"]["nextclade"],
+        outdir = join(WORKPATH, "{sample}", "lineage", "{target}"),
+        extra = config["parameters"]["lineage"]["nextclade"],
     log:
         join(WORKPATH, "logfiles", "lineage",
              "{sample}.{target}.nextclade_clade.log"),
     resources:
         partition = allocated("partition", "nextclade_clade", cluster),
-        mem       = allocated("mem",       "nextclade_clade", cluster),
-        time      = allocated("time",      "nextclade_clade", cluster),
+        mem = allocated("mem", "nextclade_clade", cluster),
+        time = allocated("time", "nextclade_clade", cluster),
     threads:
         int(allocated("threads", "nextclade_clade", cluster))
     container:

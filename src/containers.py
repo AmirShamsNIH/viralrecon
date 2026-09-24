@@ -35,9 +35,9 @@ def image_roots(repo_path, platform=DEFAULT_PLATFORM, data=None):
 
 def resolve_images(repo_path, platform=DEFAULT_PLATFORM, data=None):
     """tool name -> absolute .sif path for platform, without the "_" commentary keys."""
-    data  = data if data is not None else load_container_config(repo_path)
+    data = data if data is not None else load_container_config(repo_path)
     roots = image_roots(repo_path, platform, data)
-    out   = {}
+    out = {}
     for tool, path in data.get("images", {}).items():
         if tool.startswith("_"):
             continue

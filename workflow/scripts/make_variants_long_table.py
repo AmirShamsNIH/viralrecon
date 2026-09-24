@@ -10,11 +10,11 @@ import sys
 
 def parse_args():
     ap = argparse.ArgumentParser(
-        description="Reshape wide GATK VariantsToTable → long-format TSV"
+        description="Reshape wide GATK VariantsToTable -> long-format TSV"
     )
-    ap.add_argument("--input",   required=True, help="GATK VariantsToTable TSV")
-    ap.add_argument("--output",  required=True, help="Output long-format TSV")
-    ap.add_argument("--target",  required=True, help="Target/reference name")
+    ap.add_argument("--input", required=True, help="GATK VariantsToTable TSV")
+    ap.add_argument("--output", required=True, help="Output long-format TSV")
+    ap.add_argument("--target", required=True, help="Target/reference name")
     ap.add_argument("--samples", nargs="+", required=True, help="Sample names")
     return ap.parse_args()
 
@@ -35,12 +35,11 @@ def reshape(input_path, output_path, target, samples):
     with open(input_path, newline="") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         header = reader.fieldnames or []
-        rows   = list(reader)
+        rows = list(reader)
 
     shared = _shared_cols(header, samples)
 
     out_header = ["TARGET", "SAMPLE"] + shared
-    # Collect the union of per-sample local column names
     local_col_sets = [set(lc for _, lc in _sample_cols(header, s)) for s in samples]
     all_local = []
     seen = set()
@@ -71,7 +70,7 @@ def reshape(input_path, output_path, target, samples):
                     out_row[lc] = row.get(hc, ".")
                 writer.writerow(out_row)
 
-    print("Wrote long-format table → {}".format(output_path), file=sys.stderr)
+    print("Wrote long-format table -> {}".format(output_path), file=sys.stderr)
 
 
 def main():

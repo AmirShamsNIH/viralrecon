@@ -16,17 +16,15 @@ except ImportError:
     from utils import err, fatal, which
     import containers
 
-# Built-in virus to accession presets
-
 VIRUS_PRESETS = {
-    "SARS":           "NC_045512.2",   # SARS-CoV-2 Wuhan-Hu-1
-    "SARS2":          "NC_045512.2",   # alias
-    "MPOX":           "NC_063383.1",   # Mpox virus
-    "HIV1":           "NC_001802.1",   # HIV-1
-    "INFLUENZA_H1N1": "NC_026433.1",   # Influenza A H1N1 HA segment
-    "EBV":            "NC_007605.1",   # Epstein-Barr virus
-    "RSV":            "NC_038235.1",   # RSV-A
-    "DENGUE1":        "NC_001477.1",   # Dengue virus 1
+    "SARS": "NC_045512.2",  # SARS-CoV-2 Wuhan-Hu-1
+    "SARS2": "NC_045512.2",  # alias
+    "MPOX": "NC_063383.1",  # Mpox virus
+    "HIV1": "NC_001802.1",  # HIV-1
+    "INFLUENZA_H1N1": "NC_026433.1",  # Influenza A H1N1 HA segment
+    "EBV": "NC_007605.1",  # Epstein-Barr virus
+    "RSV": "NC_038235.1",  # RSV-A
+    "DENGUE1": "NC_001477.1",  # Dengue virus 1
 }
 
 
@@ -48,9 +46,9 @@ def _curl_or_wget(url, out):
 
 def _efetch_fasta(accession, out_path):
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    url  = "{}/efetch.fcgi?db=nuccore&id={}&rettype=fasta&retmode=text".format(
+    url = "{}/efetch.fcgi?db=nuccore&id={}&rettype=fasta&retmode=text".format(
         base, accession)
-    print("  Downloading FASTA for {} …".format(accession))
+    print("  Downloading FASTA for {} ...".format(accession))
     _curl_or_wget(url, out_path)
     with open(out_path) as fh:
         if fh.read(1) != ">":
@@ -66,7 +64,7 @@ def _efetch_taxid(accession):
     import time
 
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    url  = "{}/esummary.fcgi?db=nuccore&id={}&retmode=json".format(base, accession)
+    url = "{}/esummary.fcgi?db=nuccore&id={}&retmode=json".format(base, accession)
 
     # NCBI throttles anonymous callers to about 3 requests/s and a build has just
     # made two efetch calls, so retry with backoff rather than lose the taxid.
@@ -94,9 +92,9 @@ def _efetch_taxid(accession):
 
 def _efetch_gff(accession, out_path):
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    url  = "{}/efetch.fcgi?db=nuccore&id={}&rettype=gff3&retmode=text".format(
+    url = "{}/efetch.fcgi?db=nuccore&id={}&rettype=gff3&retmode=text".format(
         base, accession)
-    print("  Downloading GFF3 for {} …".format(accession))
+    print("  Downloading GFF3 for {} ...".format(accession))
     _curl_or_wget(url, out_path)
     with open(out_path) as fh:
         if fh.read(1) != "#":
@@ -109,7 +107,7 @@ def _download_reference(accession, genome_dir, canonical_name):
     """Download FASTA + GFF into genome_dir (skips files that already exist)."""
     os.makedirs(genome_dir, exist_ok=True)
     fasta_out = os.path.join(genome_dir, "{}.fa".format(canonical_name))
-    gff_out   = os.path.join(genome_dir, "genes.gff")
+    gff_out = os.path.join(genome_dir, "genes.gff")
 
     if os.path.isfile(fasta_out) and os.path.getsize(fasta_out) > 0:
         print("  FASTA already present, skipping download")
@@ -129,8 +127,8 @@ def _download_reference(accession, genome_dir, canonical_name):
     if missing:
         fatal("Failed to obtain: {}".format(", ".join(missing)))
 
-    print("  FASTA → {}".format(fasta_out))
-    print("  GFF   → {}".format(gff_out))
+    print("  FASTA -> {}".format(fasta_out))
+    print("  GFF   -> {}".format(gff_out))
     return os.path.abspath(fasta_out), os.path.abspath(gff_out)
 
 
@@ -184,7 +182,7 @@ def _validate_local(fasta, annotation):
     if errors:
         fatal("\n\t" + "\n\t".join(errors))
 
-    seqs  = _fasta_seqs(fasta)
+    seqs = _fasta_seqs(fasta)
     feats = _annotation_features(annotation)
     if not seqs:
         fatal("\n\tNo sequences found in {}".format(fasta))
@@ -223,8 +221,7 @@ def _validate_local(fasta, annotation):
           .format(len(seqs), len(feats)))
 
 
-# Tool execution: every tool runs from a pinned image resolved through
-# config/containers.json, never from `module load`.
+# Tool execution: every tool runs from a pinned image, never from `module load`.
 
 # Directories a build step reads or writes inside an image, set by build() from
 # --output so no cluster path is hardcoded here.
@@ -252,7 +249,7 @@ def _load_images():
 
 def _singularity_prefix(image):
     """argv prefix that runs a command inside `image`."""
-    here  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     roots = list(containers.image_roots(here, _PLATFORM).values())
     binds = ",".join(dict.fromkeys(d for d in _CONTAINER_BINDS + roots if os.path.isdir(d)))
     cmd = ["singularity", "exec"]
@@ -265,7 +262,7 @@ def _run_cmd(cmd, label, log_file, image=None, check=True):
     """Run a command, inside `image` when one is given, appending output to log_file.
     With check=False a failure is returned rather than fatal."""
     import shlex
-    print("    \u2192 {}".format(label))
+    print("    -> {}".format(label))
     argv = _singularity_prefix(image) + list(cmd) if image else list(cmd)
     cmd_str = " ".join(shlex.quote(str(c)) for c in argv)
     with open(log_file, "a") as lf:
@@ -296,13 +293,12 @@ def _build_index(canonical_name, genome_dir):
     snpEff). Idempotent: each step is skipped if its output already exists."""
     images = _load_images()
     fasta_path = os.path.join(genome_dir, "{}.fa".format(canonical_name))
-    fai_path   = fasta_path + ".fai"
-    dict_path  = os.path.join(genome_dir, "{}.dict".format(canonical_name))
-    bt2_done   = os.path.join(genome_dir, "{}.1.bt2".format(canonical_name))
+    fai_path = fasta_path + ".fai"
+    dict_path = os.path.join(genome_dir, "{}.dict".format(canonical_name))
+    bt2_done = os.path.join(genome_dir, "{}.1.bt2".format(canonical_name))
     snpeff_cfg = os.path.join(genome_dir, "snpEff.config")
-    log        = os.path.join(genome_dir, "build_index.log")
+    log = os.path.join(genome_dir, "build_index.log")
 
-    # Detect annotation file
     gff_path = os.path.join(genome_dir, "genes.gff")
     gtf_path = os.path.join(genome_dir, "genes.gtf")
     if os.path.isfile(gff_path):
@@ -313,28 +309,25 @@ def _build_index(canonical_name, genome_dir):
         fatal("No annotation file found in {}.\n"
               "  Expected: genes.gff or genes.gtf".format(genome_dir))
 
-    print("\n  Indexing '{}' …".format(canonical_name))
-    print("  Log → {}".format(log))
+    print("\n  Indexing '{}' ...".format(canonical_name))
+    print("  Log -> {}".format(log))
 
-    # 1. samtools faidx
     if os.path.isfile(fai_path):
-        print("    ✓ .fa.fai exists, skip")
+        print("    .fa.fai exists, skip")
     else:
         _run_cmd(["samtools", "faidx", fasta_path], "samtools faidx", log,
                  image=images["samtools"])
 
-    # 2. samtools dict
     if os.path.isfile(dict_path):
-        print("    ✓ .dict exists, skip")
+        print("    .dict exists, skip")
     else:
         _run_cmd(
             ["samtools", "dict", fasta_path, "-o", dict_path],
             "samtools dict", log, image=images["samtools"],
         )
 
-    # 3. bowtie2-build
     if os.path.isfile(bt2_done):
-        print("    ✓ .1.bt2 exists, skip")
+        print("    .1.bt2 exists, skip")
     else:
         _run_cmd(
             [
@@ -347,9 +340,8 @@ def _build_index(canonical_name, genome_dir):
             log, image=images["bowtie2"],
         )
 
-    # 4. snpEff build
     if os.path.isfile(snpeff_cfg):
-        print("    ✓ snpEff.config exists, skip")
+        print("    snpEff.config exists, skip")
     else:
         # snpEff resolves data.dir/<genome_name>/genes.gff, so data.dir must be
         # the parent of genome_dir.
@@ -378,7 +370,7 @@ def _build_index(canonical_name, genome_dir):
             log, image=images["snpeff"],
         )
 
-    print("  ✓ Indexing complete")
+    print("  Indexing complete")
 
 
 # genome.json management
@@ -389,10 +381,10 @@ def _fetch_nextclade_dataset(dataset_name, genome_dir, log):
     images = _load_images()
     out_dir = os.path.join(genome_dir, "nextclade")
     if os.path.isdir(out_dir) and os.path.isfile(os.path.join(out_dir, "pathogen.json")):
-        print("    \u2192 nextclade dataset already present")
+        print("    nextclade dataset already present")
         return out_dir
 
-    print("  Fetching Nextclade dataset '{}' \u2026".format(dataset_name))
+    print("  Fetching Nextclade dataset '{}' ...".format(dataset_name))
     _run_cmd(
         ["nextclade", "dataset", "get",
          "--name", dataset_name, "--output-dir", out_dir],
@@ -413,7 +405,7 @@ def _match_nextclade_dataset(fasta, genome_dir, log):
     No match, a split match across segments, or no network all skip lineage."""
     images = _load_images()
     tsv = os.path.join(genome_dir, "nextclade_sort.tsv")
-    print("  Matching a Nextclade dataset \u2026")
+    print("  Matching a Nextclade dataset ...")
     ret = _run_cmd(
         ["nextclade", "sort", "--output-results-tsv", tsv, fasta],
         "nextclade sort", log, image=images["nextclade"], check=False,
@@ -547,7 +539,7 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
         os.fsync(fh.fileno())
     os.replace(tmp, genome_json_path)
 
-    print("  genome.json → {}".format(genome_json_path))
+    print("  genome.json -> {}".format(genome_json_path))
     print("  Registered as '{}'".format(canonical_name))
     _note = data["references"]["target"][platforms[0]][canonical_name].get("notes")
     if _note:
@@ -559,17 +551,16 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
 def build(sub_args, repo_path):
     """Entry point for `viralrecon build`: fetch FASTA and GFF, build the indices,
     and register the target in --output/genome.json."""
-    virus      = sub_args.virus
-    accession  = getattr(sub_args, "accession", None)
-    outdir     = os.path.abspath(sub_args.output)
-    platform   = getattr(sub_args, "platform", None)
-    local_fasta      = getattr(sub_args, "fasta",       None)
-    local_annotation = getattr(sub_args, "annotation",  None)
-    no_index         = getattr(sub_args, "no_index",    False)
+    virus = sub_args.virus
+    accession = getattr(sub_args, "accession", None)
+    outdir = os.path.abspath(sub_args.output)
+    platform = getattr(sub_args, "platform", None)
+    local_fasta = getattr(sub_args, "fasta", None)
+    local_annotation = getattr(sub_args, "annotation", None)
+    no_index = getattr(sub_args, "no_index", False)
 
     local_pair = bool(local_fasta and local_annotation)
 
-    # ── Source selection: accession XOR local files ─────────────────────────
     # Both say where the reference comes from, so accepting both is ambiguous.
     if accession and local_pair:
         fatal(
@@ -595,7 +586,6 @@ def build(sub_args, repo_path):
             "\t--virus), or --fasta with --annotation and a --name."
         )
 
-    # Resolve accession from preset if not provided
     if not accession and not local_pair:
         preset_acc = VIRUS_PRESETS.get(virus.upper())
         if not preset_acc:
@@ -621,10 +611,10 @@ def build(sub_args, repo_path):
             )
     else:
         canonical_name = _canonical_name(virus, accession)
-    genome_dir     = os.path.join(outdir, canonical_name)
+    genome_dir = os.path.join(outdir, canonical_name)
     # Register only the platform being built on, since genome.json paths are
     # absolute on this filesystem. Defaults to BIOWULF, matching `viralrecon run`.
-    platforms      = [platform] if platform else ["BIOWULF"]
+    platforms = [platform] if platform else ["BIOWULF"]
     _set_platform(platforms[0])
     _CONTAINER_BINDS[:] = [outdir, os.path.realpath(outdir)]
 
@@ -633,7 +623,6 @@ def build(sub_args, repo_path):
 
     no_nc = getattr(sub_args, "no_nextclade", False)
 
-    # ── Already built? Verify, then skip ────────────────────────────────────
     # A registry entry is not proof the files exist, so check both before skipping.
     registered = False
     if os.path.isfile(genome_json):
@@ -642,7 +631,7 @@ def build(sub_args, repo_path):
                 _reg = json.load(fh).get("references", {}).get("target", {})
             registered = any(canonical_name in _reg.get(pl, {}) for pl in platforms)
         except ValueError:
-            pass          # reported properly by _update_genome_json later
+            pass  # reported by _update_genome_json later
 
     missing = _missing_artifacts(genome_dir, canonical_name)
 
@@ -693,7 +682,7 @@ def build(sub_args, repo_path):
                 taxid=taxid,
                 nextclade_dataset=nc_path,
             )
-        print("\n✓ Genome '{}' is already built and complete, skipping."
+        print("\nGenome '{}' is already built and complete, skipping."
               .format(canonical_name))
         print("  Reference dir : {}".format(genome_dir))
         print("  genome.json   : {}".format(genome_json))
@@ -709,26 +698,24 @@ def build(sub_args, repo_path):
         print("\n--force given; rebuilding '{}' from scratch."
               .format(canonical_name))
 
-    print("\nBuilding genome '{}' …".format(canonical_name))
+    print("\nBuilding genome '{}' ...".format(canonical_name))
     os.makedirs(genome_dir, exist_ok=True)
 
-    # Obtain FASTA + GFF
     if local_pair:
         _validate_local(local_fasta, local_annotation)
         fasta_dst = os.path.join(genome_dir, "{}.fa".format(canonical_name))
-        gff_dst   = os.path.join(genome_dir, "genes.gff")
+        gff_dst = os.path.join(genome_dir, "genes.gff")
         if not os.path.isfile(fasta_dst):
             shutil.copy(os.path.abspath(local_fasta), fasta_dst)
         if not os.path.isfile(gff_dst):
             shutil.copy(os.path.abspath(local_annotation), gff_dst)
         fasta_path = os.path.abspath(fasta_dst)
-        gff_path   = os.path.abspath(gff_dst)
-        print("  FASTA → {}".format(fasta_path))
-        print("  GFF   → {}".format(gff_path))
+        gff_path = os.path.abspath(gff_dst)
+        print("  FASTA -> {}".format(fasta_path))
+        print("  GFF   -> {}".format(gff_path))
     else:
         fasta_path, gff_path = _download_reference(accession, genome_dir, canonical_name)
 
-    # Build indices (idempotent)
     if not no_index:
         _build_index(canonical_name, genome_dir)
 
@@ -738,7 +725,6 @@ def build(sub_args, repo_path):
     if nc_dataset:
         nc_path = _fetch_nextclade_dataset(nc_dataset, genome_dir, _log)
 
-    # Write genome.json inside the reference output directory
     taxid = getattr(sub_args, "taxid", None)
     if not taxid and not local_pair:
         taxid = _efetch_taxid(accession)
@@ -756,7 +742,7 @@ def build(sub_args, repo_path):
         nextclade_dataset=nc_path,
     )
 
-    print("\n✓ Genome '{}' ready.".format(canonical_name))
+    print("\nGenome '{}' ready.".format(canonical_name))
     print("  Reference dir : {}".format(genome_dir))
     print("  genome.json   : {}".format(genome_json))
     print("\nTo run the pipeline against this (and other built) targets:")

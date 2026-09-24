@@ -13,7 +13,7 @@ _ANN_ALLELE, _ANN_EFFECT, _ANN_IMPACT, _ANN_GENE = 0, 1, 2, 3
 _ANN_HGVS_C, _ANN_HGVS_P = 9, 10
 
 # Three-letter to one-letter amino acid codes, so p.Gln6249His also appears as
-# Q6249H -- the form people search for and cite.
+# Q6249H, the form people search for and cite.
 _AA3TO1 = {
     "Ala": "A", "Arg": "R", "Asn": "N", "Asp": "D", "Cys": "C",
     "Gln": "Q", "Glu": "E", "Gly": "G", "His": "H", "Ile": "I",
@@ -29,8 +29,8 @@ def parse_args():
     ap = argparse.ArgumentParser(
         description="Reshape wide GATK VariantsToTable -> variant x sample matrix"
     )
-    ap.add_argument("--input",   required=True, help="GATK VariantsToTable TSV")
-    ap.add_argument("--output",  required=True, help="Output matrix TSV")
+    ap.add_argument("--input", required=True, help="GATK VariantsToTable TSV")
+    ap.add_argument("--output", required=True, help="Output matrix TSV")
     ap.add_argument("--samples", nargs="+", required=True, help="Sample names")
     ap.add_argument("--min-pct", type=float, default=0.0,
                     help="Blank out a sample's cell below this alt percentage "
@@ -77,11 +77,11 @@ def parse_ann(ann_field):
 
     hgvs_p = get(_ANN_HGVS_P)
     return {
-        "EFFECT":    get(_ANN_EFFECT),
-        "SEVERITY":  get(_ANN_IMPACT),
-        "GENE":      get(_ANN_GENE),
-        "HGVS_C":    get(_ANN_HGVS_C),
-        "HGVS_P":    hgvs_p,
+        "EFFECT": get(_ANN_EFFECT),
+        "SEVERITY": get(_ANN_IMPACT),
+        "GENE": get(_ANN_GENE),
+        "HGVS_C": get(_ANN_HGVS_C),
+        "HGVS_P": hgvs_p,
         "AA_CHANGE": aa_one_letter(hgvs_p),
     }
 

@@ -170,7 +170,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
   <div class="eyebrow">NIAID · RTB Genomics Research Section · Pipeline brief</div>
   <h1>viral<span>recon</span></h1>
   <p class="lede">From raw sequencing reads to an annotated, clade-assigned viral genome, for any virus, in one reproducible run.</p>
-  <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single report a scientist opens first. It runs on NIH Biowulf and on NIAID's BigSky and Skyline clusters.</p>
+  <p class="lede-sub">viralrecon takes Illumina FASTQ files from clinical or environmental samples and a set of reference genomes, and returns per-sample consensus genomes, low-frequency variant calls, contamination profiles, clade assignments and a single summary report. It runs on NIH Biowulf and on NIAID's BigSky and Skyline clusters.</p>
 
   <div class="readstrip" aria-hidden="true">
     <div class="bases" id="bases"></div>
@@ -181,7 +181,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
     <div class="fact" role="listitem"><b>16 / 16</b><span>sample × reference results passed QC</span></div>
     <div class="fact" role="listitem"><b>353</b><span>compute jobs, 0 failed</span></div>
     <div class="fact" role="listitem"><b>9 h 51 m</b><span>wall time, 8 samples × 2 references</span></div>
-    <div class="fact" role="listitem"><b>21</b><span>version-pinned container images</span></div>
+    <div class="fact" role="listitem"><b>20</b><span>version-pinned container images</span></div>
     <div class="fact" role="listitem"><b>7 / 7</b><span>variants reproduced vs. the RML reference analysis</span></div>
   </div>
   <p class="facts-note">Figures from the NIAID_1409 validation run on Biowulf, September 2026.</p>
@@ -217,15 +217,15 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
   <main>
     <section id="purpose">
       <span class="kicker">Overview</span>
-      <h2>Four questions, one pass</h2>
+      <h2>What it answers</h2>
       <div class="prose">
-        <p>Sequencing a virus straight from a sample answers several questions at once. Answered separately, with scripts rewritten per project, results drift between analysts and cannot be reproduced a year later. viralrecon answers them together, with every tool and parameter recorded alongside the result.</p>
+        <p>Sequencing a virus directly from a sample raises four questions. When each is answered with scripts rewritten per project, results drift between analysts and cannot be reproduced later. viralrecon answers all four in one run and records every tool and parameter with the result.</p>
       </div>
       <div class="questions">
-        <div class="q"><h3>What is in the sample?</h3><p>Viral, human and bacterial read fractions, so low coverage can be traced to the library rather than blamed on the analysis.</p><span class="ans">→ Kraken2 · Krona</span></div>
-        <div class="q"><h3>What does the genome look like?</h3><p>A consensus sequence per sample and reference, with every low-evidence position masked instead of guessed.</p><span class="ans">→ consensus FASTA · QUAST</span></div>
-        <div class="q"><h3>How does it differ from the reference?</h3><p>Fixed mutations and minority variants down to 2% frequency, annotated with their effect on each protein.</p><span class="ans">→ FreeBayes · SnpEff</span></div>
-        <div class="q"><h3>Which known clade is it?</h3><p>Placement on the published phylogeny for any virus with a Nextclade dataset, with a quality verdict.</p><span class="ans">→ Nextclade</span></div>
+        <div class="q"><h3>What is in the sample?</h3><p>Viral, human and bacterial read fractions, so low coverage can be traced to the library.</p><span class="ans">Kraken2 · Krona</span></div>
+        <div class="q"><h3>What does the genome look like?</h3><p>A consensus sequence per sample and reference, with every low-evidence position masked.</p><span class="ans">consensus FASTA · QUAST</span></div>
+        <div class="q"><h3>How does it differ from the reference?</h3><p>Fixed mutations and minority variants down to 2% frequency, annotated with their effect on each protein.</p><span class="ans">FreeBayes · SnpEff</span></div>
+        <div class="q"><h3>Which known clade is it?</h3><p>Placement on the published phylogeny for any virus with a Nextclade dataset, with a quality verdict.</p><span class="ans">Nextclade</span></div>
       </div>
     </section>
 
@@ -254,9 +254,9 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Reference build</h2>
       <div class="stage">
         <div class="prose">
-          <p>Before any sample is touched, each reference genome is prepared once and registered. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation, useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
+          <p>Each reference genome is prepared once and registered before samples are processed. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation, useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
           <p>The build downloads the genome and gene annotation, builds the alignment index, the sequence dictionary and a protein-effect database, and records the virus's NCBI taxonomy ID. It also matches the virus to a Nextclade dataset automatically, when one exists. All of this is written into a single registry, <code>genome.json</code>, which accumulates references across projects.</p>
-          <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome, an error that would otherwise have silently removed that gene from every protein-effect call.</p>
+          <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome, which would otherwise have dropped that gene from every protein-effect call.</p>
         </div>
         <aside class="spec">
           <h4>Build produces</h4>
@@ -278,7 +278,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
           <div class="step">
             <h3>Repair <span class="tool">BBTools reformat 38.87</span></h3>
             <p>Raw read pairs are first made structurally valid: junk bases fixed, ambiguous IUPAC codes converted to <code>N</code>, broken pairs dropped, quality values clamped to a sane range.</p>
-            <p class="why">a single malformed record can crash every tool downstream; repairing first means failures later reflect biology, not file corruption.</p>
+            <p class="why">a single malformed record can crash every downstream tool, so repairing first keeps later failures about the data rather than file corruption.</p>
           </div>
           <div class="step">
             <h3>Trim &amp; filter <span class="tool">fastp 0.23.4</span></h3>
@@ -308,9 +308,9 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Composition &amp; host depletion</h2>
       <div class="stage">
         <div class="prose">
-          <p>Samples sequenced directly from patients or the environment are mostly <em>not</em> virus. Every read is classified taxonomically against the Kraken2 standard database, producing an interactive Krona chart and a composition table showing the viral, target-virus, human and bacterial fractions.</p>
+          <p>Samples sequenced directly from patients or the environment contain mostly non-viral reads. Every read is classified taxonomically against the Kraken2 standard database, producing an interactive Krona chart and a composition table showing the viral, target-virus, human and bacterial fractions.</p>
           <p>Human reads, the PhiX sequencing control and bacterial reads are then removed before alignment. This protects patient privacy in downstream files, shortens run time, and prevents host sequence from mapping to conserved regions of the viral genome.</p>
-          <p>In the validation run, the on-target fraction ranged from <strong>1.5 %</strong> to <strong>97.8 %</strong> across samples. This single number explains most differences in final coverage, which is why it sits in the summary table beside the genome results.</p>
+          <p>In the validation run, the on-target fraction ranged from 1.5 % to 97.8 % across samples. It explains most of the differences in final coverage, so it is reported in the summary table beside the genome results.</p>
         </div>
         <aside class="spec">
           <h4>Key settings</h4>
@@ -352,9 +352,9 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Variant calling &amp; annotation</h2>
       <div class="stage">
         <div class="prose">
-          <p>A viral sample is rarely a single genome. Within one infection the population carries minority variants: early resistance mutations, co-infections, or the start of a lineage shift. viralrecon calls variants with FreeBayes in <strong>pooled-continuous</strong> mode, which models the sample as a mixture and reports alleles present in as little as <strong>2 %</strong> of reads rather than forcing a diploid-style genotype.</p>
+          <p>A viral sample is rarely a single genome. Within one infection the population carries minority variants: early resistance mutations, co-infections, or the start of a lineage shift. viralrecon calls variants with FreeBayes in pooled-continuous mode, which models the sample as a mixture and reports alleles present in as little as 2 % of reads rather than forcing a diploid-style genotype.</p>
           <p>Multi-allelic sites are split into one record per allele and normalised so the same change is always written the same way. Each variant is annotated by SnpEff with its gene, its effect (synonymous, missense, frameshift…) and the protein change in standard notation, for example <code>p.Gln6249His</code>, also given in short form as <code>Q6249H</code>.</p>
-          <p>Two call sets are kept on purpose: <strong>raw</strong>, everything the caller saw, and <strong>filtered</strong>, calls passing quality and depth thresholds. Comparing the two tells a reviewer whether a mutation is genuinely absent from a sample or was present and filtered out.</p>
+          <p>Two call sets are kept: <strong>raw</strong>, everything the caller saw, and <strong>filtered</strong>, calls passing quality and depth thresholds. Comparing the two tells a reviewer whether a mutation is absent from a sample or was present and filtered out.</p>
         </div>
         <aside class="spec">
           <h4>Key settings</h4>
@@ -376,15 +376,15 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Consensus genome</h2>
       <div class="stage">
         <div class="prose">
-          <p>Variants are applied to the reference to produce one consensus genome per sample and reference. The critical detail is what happens where the data is thin: every position below <strong>10×</strong> depth is written as <code>N</code>.</p>
-          <p>Without masking, a consensus silently inherits the reference base wherever no reads exist, and a poorly covered sample looks identical to the reference in exactly the regions nobody observed. Masked genomes are honest about what was measured, which matters when they are submitted to public databases or used to build phylogenies.</p>
-          <p>Each consensus is assessed with QUAST, and the fraction of the genome that reached the depth threshold is reported. Below <strong>80 %</strong> coverage the result carries a warning.</p>
+          <p>Variants are applied to the reference to produce one consensus genome per sample and reference. Every position below 10× depth is written as <code>N</code>.</p>
+          <p>Without masking, a consensus inherits the reference base wherever no reads exist, so a poorly covered sample looks identical to the reference in the regions that were not observed. This matters when genomes are submitted to public databases or used to build phylogenies.</p>
+          <p>Each consensus is assessed with QUAST, and the fraction of the genome that reached the depth threshold is reported. Below 80 % coverage the result carries a warning.</p>
         </div>
         <aside class="spec">
           <h4>Key settings</h4>
           <dl>
             <dt>Builder</dt><dd>bcftools consensus</dd>
-            <dt>Mask below</dt><dd>10× depth → N</dd>
+            <dt>Mask below</dt><dd>10× depth, written as N</dd>
             <dt>Coverage warning below</dt><dd>80 % of genome</dd>
             <dt>Assessment</dt><dd>QUAST 5.3.0</dd>
           </dl>
@@ -398,8 +398,8 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <div class="stage">
         <div class="prose">
           <p>Each consensus genome is placed on the published reference phylogeny with Nextclade, which returns its clade, a list of mutations relative to the dataset's reference, genome coverage, and an overall quality verdict of good, mediocre or bad.</p>
-          <p>Nextclade is <strong>dataset-driven</strong>, which is what makes this stage virus-agnostic. Datasets exist for SARS-CoV-2, mpox, RSV, influenza and many more. The dataset is attached to the reference when it is built, so a new virus needs a build step, not a change to the pipeline. A reference without a dataset is skipped rather than described with another virus's nomenclature.</p>
-          <p>Virus-specific tools that could only ever describe one or two pathogens were deliberately left out, so the pipeline behaves the same way for every virus it is given.</p>
+          <p>Nextclade is dataset-driven, so this stage works for any virus that has a dataset. Datasets exist for SARS-CoV-2, mpox, RSV, influenza and many more. The dataset is attached to the reference when it is built, so a new virus needs a build step, not a change to the pipeline. A reference without a dataset is skipped rather than described with another virus's nomenclature.</p>
+          <p>Tools that can describe only one or two pathogens were left out, so the pipeline behaves the same way for every virus.</p>
         </div>
         <aside class="spec">
           <h4>Key settings</h4>
@@ -419,7 +419,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
         <div class="prose">
           <p>Results from every sample are merged per reference and assembled into a single <code>final_report/</code> directory designed to be read top-down.</p>
           <p><strong>One summary table</strong> gives one row per sample and reference: read input, composition, mapping, depth, genome coverage, variant count, clade, and a verdict column that reads <code>pass</code> or names exactly which check failed.</p>
-          <p><strong>Variant matrices</strong> show one row per mutation and one column per sample with its frequency, so the question "is this mutation fixed everywhere, or a minority in three samples?" is answered by reading across a line.</p>
+          <p><strong>Variant matrices</strong> show one row per mutation and one column per sample with its frequency, so reading across a row shows whether a mutation is fixed everywhere or a minority in a few samples.</p>
           <p><strong>Figures and a self-contained IGV report</strong> let a reviewer see the read evidence behind each variant in a web browser, with no genome browser installed. Input alignments are downsampled to 200× for this report so it stays around 40 MB per reference instead of gigabytes.</p>
           <p><strong>A MultiQC report</strong> collects quality metrics from every tool, stage and sample into one page.</p>
         </div>
@@ -441,11 +441,11 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <h2>Key features</h2>
       <div class="features">
         <div class="feature"><h3>Works for any virus</h3><p>No step is written for one pathogen. Everything that differs between viruses (genome, annotation, taxonomy ID, Nextclade dataset) is recorded on the reference, so adding a virus is a build command.</p></div>
-        <div class="feature"><h3>Reproducible by construction</h3><p>Every tool runs from a version-pinned Singularity image, never a cluster module that can change underneath a project. Each run directory keeps the exact code and parameters that produced it.</p></div>
-        <div class="feature"><h3>Minority variants, not just consensus</h3><p>Population-aware calling down to 2% allele frequency surfaces co-infections and emerging mutations that a consensus-only analysis hides by construction.</p></div>
-        <div class="feature"><h3>Several references in one run</h3><p>Samples are compared against multiple references at once (for example a historical type strain and a current circulating isolate), with results kept cleanly separate.</p></div>
-        <div class="feature"><h3>Honest genomes</h3><p>Low-evidence positions are masked rather than filled from the reference, so a genome never claims sequence nobody measured.</p></div>
-        <div class="feature"><h3>A verdict, not just numbers</h3><p>Each result carries a pass or a named warning (low coverage, too few mapped reads, a failed clade call), so problems are found by reading one column.</p></div>
+        <div class="feature"><h3>Reproducible</h3><p>Every tool runs from a version-pinned Singularity image, never a cluster module that can change underneath a project. Each run directory keeps the exact code and parameters that produced it.</p></div>
+        <div class="feature"><h3>Minority variants</h3><p>Population-aware calling down to 2% allele frequency reports co-infections and emerging mutations that a consensus-only analysis misses.</p></div>
+        <div class="feature"><h3>Several references in one run</h3><p>Samples are compared against multiple references at once (for example a historical type strain and a current circulating isolate), with results kept separate.</p></div>
+        <div class="feature"><h3>Masked consensus</h3><p>Low-evidence positions are masked rather than filled from the reference, so a genome contains no unobserved sequence.</p></div>
+        <div class="feature"><h3>A QC verdict per result</h3><p>Each result carries a pass or a named warning (low coverage, too few mapped reads, a failed clade call), so problems show up in one column.</p></div>
         <div class="feature"><h3>Failures stay contained</h3><p>An annotation that fails for one sample is recorded and reported without discarding the run. The error log stays empty when nothing failed, and lists exactly what did when something does.</p></div>
         <div class="feature"><h3>Runs on three clusters</h3><p>The same code runs on NIH Biowulf, NIAID BigSky and NIAID Skyline. Paths, container locations and queue names are resolved per platform from configuration.</p></div>
       </div>
@@ -485,7 +485,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
 
       <div class="callout">
         <p><strong>What the table shows.</strong> Genome coverage was above 99.4 % for every sample, even at 1.5 % on-target reads. The clade is the same whichever dataset is used, because Nextclade places each genome on its own reference tree.</p>
-        <p>The quality verdict depends on the dataset. The six recent 24A samples score <em>mediocre</em> or <em>bad</em> against the Wuhan-rooted dataset but <em>good</em> against one rooted at BA.2.86, which is much closer to them. The older 19B samples fall outside the BA.2.86 tree. The practical rule: choose the dataset closest to what was sequenced before reading its QC verdict.</p>
+        <p>The quality verdict depends on the dataset. The six recent 24A samples score <em>mediocre</em> or <em>bad</em> against the Wuhan-rooted dataset but <em>good</em> against one rooted at BA.2.86, which is much closer to them. The older 19B samples fall outside the BA.2.86 tree. Choose the dataset closest to what was sequenced before reading its QC verdict.</p>
       </div>
     </section>
 

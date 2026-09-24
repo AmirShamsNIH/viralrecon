@@ -4,11 +4,8 @@
 from os.path import join
 from scripts.common import allocated
 
-_FR = join(WORKPATH, "final_report")   # shorthand used throughout
+_FR = join(WORKPATH, "final_report")
 
-
-# ── bcftools_merge / snpeff_aggregate / bgzip_aggregate /
-#    gatk_aggregate_table / collect_mapping_summary ──────────────────────────
 
 rule bcftools_merge:
     """Merge the per-sample annotated VCFs for a target, stripping FORMAT/GL and PL,
@@ -28,15 +25,15 @@ rule bcftools_merge:
         agg_vcf = join(_FR, "{target}", "aggregate.{target}.vcf.gz"),
         agg_tbi = join(_FR, "{target}", "aggregate.{target}.vcf.gz.tbi"),
     params:
-        rname       = "bcftools_merge",
+        rname = "bcftools_merge",
         extra_merge = config["parameters"]["report"]["bcftools_merge"],
-        outdir      = join(_FR, "{target}"),
+        outdir = join(_FR, "{target}"),
     log:
         join(WORKPATH, "logfiles", "report", "bcftools_merge.{target}.log"),
     resources:
         partition = allocated("partition", "bcftools_merge", cluster),
-        mem       = allocated("mem",       "bcftools_merge", cluster),
-        time      = allocated("time",      "bcftools_merge", cluster),
+        mem = allocated("mem", "bcftools_merge", cluster),
+        time = allocated("time", "bcftools_merge", cluster),
     threads:
         int(allocated("threads", "bcftools_merge", cluster))
     container:
@@ -68,18 +65,18 @@ rule snpeff_aggregate:
         snpeff_cfg = join(WORKPATH, "ref_db", "{target}", "snpEff.config"),
     output:
         vcf = temp(join(_FR, "{target}", "aggregate.{target}.snpeff.vcf")),
-        snpeff_sum   = join(_FR, "{target}", "aggregate.{target}.snpEff_summary.html"),
+        snpeff_sum = join(_FR, "{target}", "aggregate.{target}.snpEff_summary.html"),
         snpeff_genes = join(_FR, "{target}", "aggregate.{target}.snpEff_summary.genes.txt"),
     params:
-        rname  = "snpeff_aggregate",
+        rname = "snpeff_aggregate",
         target = "{target}",
-        extra  = config["parameters"]["report"]["snpeff"],
+        extra = config["parameters"]["report"]["snpeff"],
     log:
         join(WORKPATH, "logfiles", "report", "snpeff_aggregate.{target}.log"),
     resources:
         partition = allocated("partition", "snpeff_aggregate", cluster),
-        mem       = allocated("mem",       "snpeff_aggregate", cluster),
-        time      = allocated("time",      "snpeff_aggregate", cluster),
+        mem = allocated("mem", "snpeff_aggregate", cluster),
+        time = allocated("time", "snpeff_aggregate", cluster),
     threads:
         int(allocated("threads", "snpeff_aggregate", cluster))
     container:
@@ -95,7 +92,6 @@ touch "{output.snpeff_sum}" "{output.snpeff_genes}"
 
 
 rule bgzip_aggregate:
-    """Compress and index the annotated aggregate VCF."""
     input:
         vcf = rules.snpeff_aggregate.output.vcf,
     output:
@@ -107,8 +103,8 @@ rule bgzip_aggregate:
         join(WORKPATH, "logfiles", "report", "bgzip_aggregate.{target}.log"),
     resources:
         partition = allocated("partition", "bgzip_aggregate", cluster),
-        mem       = allocated("mem",       "bgzip_aggregate", cluster),
-        time      = allocated("time",      "bgzip_aggregate", cluster),
+        mem = allocated("mem", "bgzip_aggregate", cluster),
+        time = allocated("time", "bgzip_aggregate", cluster),
     threads:
         int(allocated("threads", "bgzip_aggregate", cluster))
     container:
@@ -126,7 +122,7 @@ rule gatk_aggregate_table:
     input:
         vcf = rules.bgzip_aggregate.output.ann_vcf,
         tbi = rules.bgzip_aggregate.output.ann_tbi,
-        fa  = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
     output:
         variants_tbl = join(_FR, "{target}", "aggregate.{target}.snpeff.variants.txt"),
     params:
@@ -136,8 +132,8 @@ rule gatk_aggregate_table:
         join(WORKPATH, "logfiles", "report", "gatk_aggregate_table.{target}.log"),
     resources:
         partition = allocated("partition", "gatk_aggregate_table", cluster),
-        mem       = allocated("mem",       "gatk_aggregate_table", cluster),
-        time      = allocated("time",      "gatk_aggregate_table", cluster),
+        mem = allocated("mem", "gatk_aggregate_table", cluster),
+        time = allocated("time", "gatk_aggregate_table", cluster),
     threads:
         int(allocated("threads", "gatk_aggregate_table", cluster))
     container:
@@ -163,14 +159,14 @@ rule collect_mapping_summary:
     output:
         summary_tsv = join(_FR, "{target}", "aggregate.{target}.mapping_summary.tsv"),
     params:
-        rname  = "collect_mapping_summary",
+        rname = "collect_mapping_summary",
         target = "{target}",
     log:
         join(WORKPATH, "logfiles", "report", "collect_mapping_summary.{target}.log"),
     resources:
         partition = allocated("partition", "collect_mapping_summary", cluster),
-        mem       = allocated("mem",       "collect_mapping_summary", cluster),
-        time      = allocated("time",      "collect_mapping_summary", cluster),
+        mem = allocated("mem", "collect_mapping_summary", cluster),
+        time = allocated("time", "collect_mapping_summary", cluster),
     threads:
         int(allocated("threads", "collect_mapping_summary", cluster))
     container:
@@ -184,8 +180,6 @@ python3 "{input.script}" \
 """
 
 
-# ── quast_consensus ───────────────────────────────────────────────────────────
-
 rule quast_consensus:
     """QUAST assessment of per-sample consensus FASTAs against the target reference."""
     input:
@@ -197,17 +191,17 @@ rule quast_consensus:
         ref = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
     output:
         html = join(_FR, "{target}", "quast", "report.html"),
-        tsv  = join(_FR, "{target}", "quast", "report.tsv"),
+        tsv = join(_FR, "{target}", "quast", "report.tsv"),
     params:
-        rname  = "quast_consensus",
+        rname = "quast_consensus",
         outdir = join(_FR, "{target}", "quast"),
-        extra  = config["parameters"]["report"]["quast"],
+        extra = config["parameters"]["report"]["quast"],
     log:
         join(WORKPATH, "logfiles", "report", "quast_consensus.{target}.log"),
     resources:
         partition = allocated("partition", "quast_consensus", cluster),
-        mem       = allocated("mem",       "quast_consensus", cluster),
-        time      = allocated("time",      "quast_consensus", cluster),
+        mem = allocated("mem", "quast_consensus", cluster),
+        time = allocated("time", "quast_consensus", cluster),
     threads:
         int(allocated("threads", "quast_consensus", cluster))
     container:
@@ -220,7 +214,8 @@ mkdir -p "{params.outdir}"
 INFORMATIVE=0
 for fa in {input.fastas}; do
     if grep -v "^>" "$fa" | tr -d "\n" | tr -d "Nn" | grep -q .; then
-        INFORMATIVE=1; break
+        INFORMATIVE=1
+        break
     fi
 done
 
@@ -238,8 +233,6 @@ fi
 """
 
 
-# ── make_variants_long_table ──────────────────────────────────────────────────
-
 rule make_variants_long_table:
     """Reshape the aggregate variants table into a long TSV, one row per sample x variant."""
     input:
@@ -248,30 +241,28 @@ rule make_variants_long_table:
     output:
         long_tbl = join(_FR, "{target}", "aggregate.{target}.variants_long.tsv"),
     params:
-        rname   = "make_variants_long_table",
-        target  = "{target}",
+        rname = "make_variants_long_table",
+        target = "{target}",
         samples = SAMPLES,
     log:
         join(WORKPATH, "logfiles", "report", "make_variants_long_table.{target}.log"),
     resources:
         partition = allocated("partition", "make_variants_long_table", cluster),
-        mem       = allocated("mem",       "make_variants_long_table", cluster),
-        time      = allocated("time",      "make_variants_long_table", cluster),
+        mem = allocated("mem", "make_variants_long_table", cluster),
+        time = allocated("time", "make_variants_long_table", cluster),
     threads: 1
     container:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
 python3 "{input.script}" \
-    --input   "{input.tbl}" \
-    --output  "{output.long_tbl}" \
-    --target  "{params.target}" \
+    --input "{input.tbl}" \
+    --output "{output.long_tbl}" \
+    --target "{params.target}" \
     --samples {params.samples} \
     >> "{log}" 2>&1
 """
 
-
-# ── make_variants_matrix ──────────────────────────────────────────────────────
 
 rule make_variants_matrix:
     """Variant x sample matrix (AD and percentage per sample), built for the raw and
@@ -286,29 +277,27 @@ rule make_variants_matrix:
         matrix = join(_FR, "{target}",
                       "aggregate.{target}.variants_matrix.{vset}.tsv"),
     params:
-        rname   = "make_variants_matrix",
+        rname = "make_variants_matrix",
         samples = SAMPLES,
     log:
         join(WORKPATH, "logfiles", "report",
              "make_variants_matrix.{target}.{vset}.log"),
     resources:
         partition = allocated("partition", "make_variants_matrix", cluster),
-        mem       = allocated("mem",       "make_variants_matrix", cluster),
-        time      = allocated("time",      "make_variants_matrix", cluster),
+        mem = allocated("mem", "make_variants_matrix", cluster),
+        time = allocated("time", "make_variants_matrix", cluster),
     threads: 1
     container:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
 python3 "{input.script}" \
-    --input   "{input.tbl}" \
-    --output  "{output.matrix}" \
+    --input "{input.tbl}" \
+    --output "{output.matrix}" \
     --samples {params.samples} \
     >> "{log}" 2>&1
 """
 
-
-# ── bcftools_merge_filtered ───────────────────────────────────────────────────
 
 rule bcftools_merge_filtered:
     """Merge the per-sample SnpSift-filtered VCFs into one aggregate, stripping
@@ -328,15 +317,15 @@ rule bcftools_merge_filtered:
         vcf = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz"),
         tbi = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz.tbi"),
     params:
-        rname       = "bcftools_merge_filtered",
-        outdir      = join(_FR, "{target}"),
+        rname = "bcftools_merge_filtered",
+        outdir = join(_FR, "{target}"),
         extra_merge = config["parameters"]["report"]["bcftools_merge"],
     log:
         join(WORKPATH, "logfiles", "report", "bcftools_merge_filtered.{target}.log"),
     resources:
         partition = allocated("partition", "bcftools_merge_filtered", cluster),
-        mem       = allocated("mem",       "bcftools_merge_filtered", cluster),
-        time      = allocated("time",      "bcftools_merge_filtered", cluster),
+        mem = allocated("mem", "bcftools_merge_filtered", cluster),
+        time = allocated("time", "bcftools_merge_filtered", cluster),
     threads:
         int(allocated("threads", "bcftools_merge_filtered", cluster))
     container:
@@ -361,15 +350,13 @@ tabix -p vcf "{output.vcf}" >> "{log}" 2>&1
 """
 
 
-# ── gatk_aggregate_table_filtered ─────────────────────────────────────────────
-
 rule gatk_aggregate_table_filtered:
     """Flatten the aggregate filtered VCF into a table with the same columns as
     gatk_aggregate_table."""
     input:
         vcf = rules.bcftools_merge_filtered.output.vcf,
         tbi = rules.bcftools_merge_filtered.output.tbi,
-        fa  = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
     output:
         tbl = join(_FR, "{target}", "aggregate.{target}.filtered.variants.txt"),
     params:
@@ -380,8 +367,8 @@ rule gatk_aggregate_table_filtered:
              "gatk_aggregate_table_filtered.{target}.log"),
     resources:
         partition = allocated("partition", "gatk_aggregate_table_filtered", cluster),
-        mem       = allocated("mem",       "gatk_aggregate_table_filtered", cluster),
-        time      = allocated("time",      "gatk_aggregate_table_filtered", cluster),
+        mem = allocated("mem", "gatk_aggregate_table_filtered", cluster),
+        time = allocated("time", "gatk_aggregate_table_filtered", cluster),
     threads:
         int(allocated("threads", "gatk_aggregate_table_filtered", cluster))
     container:
@@ -394,14 +381,12 @@ gatk VariantsToTable {params.extra} \
 """
 
 
-# ── plot_report_figures ───────────────────────────────────────────────────────
-
 rule plot_report_figures:
     """Static per-target figures for readers who will not open a genome browser, drawn
     only from files the pipeline already wrote."""
     input:
         matrix = join(_FR, "{target}", "aggregate.{target}.variants_matrix.filtered.tsv"),
-        comps  = expand(
+        comps = expand(
             join(WORKPATH, "{sample}", "pre_process", "kraken2",
                  "{sample}.kraken2_decon.composition.tsv"),
             sample=SAMPLES,
@@ -410,19 +395,19 @@ rule plot_report_figures:
     output:
         done = join(_FR, "{target}", "figures", ".figures_done"),
     params:
-        rname     = "plot_report_figures",
-        outdir    = join(_FR, "{target}", "figures"),
-        workpath  = WORKPATH,
-        samples   = SAMPLES,
-        target    = "{target}",
+        rname = "plot_report_figures",
+        outdir = join(_FR, "{target}", "figures"),
+        workpath = WORKPATH,
+        samples = SAMPLES,
+        target = "{target}",
         min_depth = config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
-        taxids    = TARGET_TAXIDS,
+        taxids = TARGET_TAXIDS,
     log:
         join(WORKPATH, "logfiles", "report", "plot_report_figures.{target}.log"),
     resources:
         partition = allocated("partition", "plot_report_figures", cluster),
-        mem       = allocated("mem",       "plot_report_figures", cluster),
-        time      = allocated("time",      "plot_report_figures", cluster),
+        mem = allocated("mem", "plot_report_figures", cluster),
+        time = allocated("time", "plot_report_figures", cluster),
     threads: 1
     container:
         config["images"]["plotting"]
@@ -431,17 +416,15 @@ set -euo pipefail
 mkdir -p "{params.outdir}"
 python3 "{input.script}" \
     --workpath "{params.workpath}" \
-    --outdir   "{params.outdir}" \
-    --target   "{params.target}" \
-    --samples  {params.samples} \
-    --matrix   "{input.matrix}" \
+    --outdir "{params.outdir}" \
+    --target "{params.target}" \
+    --samples {params.samples} \
+    --matrix "{input.matrix}" \
     --target-taxids {params.taxids} \
     --consensus-min-depth {params.min_depth} >> "{log}" 2>&1
 touch "{output.done}"
 """
 
-
-# ── igv_downsample_bam ────────────────────────────────────────────────────────
 
 rule igv_downsample_bam:
     """Downsample a sample's alignment to igv_target_depth for the IGV report only, so
@@ -457,15 +440,15 @@ rule igv_downsample_bam:
         bai = temp(join(WORKPATH, "{sample}", "alignment", "{target}",
                         "{sample}.{target}.igvshallow.bam.bai")),
     params:
-        rname  = "igv_downsample_bam",
+        rname = "igv_downsample_bam",
         target_depth = config["parameters"]["report"].get("igv_target_depth", "200"),
     log:
         join(WORKPATH, "logfiles", "report",
              "igv_downsample_bam.{sample}.{target}.log"),
     resources:
         partition = allocated("partition", "igv_downsample_bam", cluster),
-        mem       = allocated("mem",       "igv_downsample_bam", cluster),
-        time      = allocated("time",      "igv_downsample_bam", cluster),
+        mem = allocated("mem", "igv_downsample_bam", cluster),
+        time = allocated("time", "igv_downsample_bam", cluster),
     threads:
         int(allocated("threads", "igv_downsample_bam", cluster))
     container:
@@ -473,12 +456,10 @@ rule igv_downsample_bam:
     shell: """
 set -euo pipefail
 
-# Mean depth over the whole reference, from the mosdepth summary already built.
 MEAN=$(awk -F'\\t' '$1=="total" {{print $4}}' "{input.summ}" | head -1)
 [ -n "$MEAN" ] || MEAN=$(awk -F'\\t' 'NR==2 {{print $4}}' "{input.summ}")
 [ -n "$MEAN" ] || MEAN=0
 
-# Keep every read when the sample is already at or below the target depth.
 FRAC=$(awk -v m="$MEAN" -v t={params.target_depth} \
     'BEGIN {{ if (m <= t || m <= 0) print 1; else printf "%.6f", t/m }}')
 echo "mean depth $MEAN, target {params.target_depth}, keeping fraction $FRAC" >> "{log}"
@@ -493,15 +474,13 @@ samtools index -@ {threads} "{output.bam}" >> "{log}" 2>&1
 """
 
 
-# ── igv_report ────────────────────────────────────────────────────────────────
-
 rule igv_report:
     """Self-contained HTML variant report with embedded igv.js, viewable without IGV or
     access to the run directory."""
     input:
-        vcf  = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz"),
-        tbi  = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz.tbi"),
-        fa   = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
+        vcf = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz"),
+        tbi = join(_FR, "{target}", "aggregate.{target}.filtered.vcf.gz.tbi"),
+        fa = join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
         bams = expand(
             join(WORKPATH, "{sample}", "alignment", "{{target}}",
                  "{sample}.{{target}}.igvshallow.bam"),
@@ -515,15 +494,15 @@ rule igv_report:
     output:
         html = join(_FR, "{target}", "igv_report.{target}.html"),
     params:
-        rname     = "igv_report",
-        flanking  = config["parameters"]["report"].get("igv_report_flanking", "150"),
+        rname = "igv_report",
+        flanking = config["parameters"]["report"].get("igv_report_flanking", "150"),
         subsample = config["parameters"]["report"].get("igv_report_subsample", "100"),
     log:
         join(WORKPATH, "logfiles", "report", "igv_report.{target}.log"),
     resources:
         partition = allocated("partition", "igv_report", cluster),
-        mem       = allocated("mem",       "igv_report", cluster),
-        time      = allocated("time",      "igv_report", cluster),
+        mem = allocated("mem", "igv_report", cluster),
+        time = allocated("time", "igv_report", cluster),
     threads: 1
     container:
         config["images"]["igvreports"]
@@ -542,8 +521,6 @@ if ! create_report "{input.vcf}" \
 fi
 """
 
-
-# ── multiqc_report ────────────────────────────────────────────────────────────
 
 rule multiqc_report:
     """Project-wide MultiQC across all stages and samples. Inputs only order it after
@@ -592,17 +569,17 @@ rule multiqc_report:
     output:
         html = join(_FR, "multiqc", "project_multiqc_report.html"),
     params:
-        rname  = "multiqc_report",
-        indir  = WORKPATH,
+        rname = "multiqc_report",
+        indir = WORKPATH,
         outdir = join(_FR, "multiqc"),
-        extra  = config["parameters"]["report"]["multiqc"],
+        extra = config["parameters"]["report"]["multiqc"],
         mqc_config = join(WORKPATH, "resources", "multiqc_config.yaml"),
     log:
         join(WORKPATH, "logfiles", "report", "multiqc_report.log"),
     resources:
         partition = allocated("partition", "multiqc_report", cluster),
-        mem       = allocated("mem",       "multiqc_report", cluster),
-        time      = allocated("time",      "multiqc_report", cluster),
+        mem = allocated("mem", "multiqc_report", cluster),
+        time = allocated("time", "multiqc_report", cluster),
     threads:
         int(allocated("threads", "multiqc_report", cluster))
     container:
@@ -616,8 +593,6 @@ multiqc {params.extra} --config "{params.mqc_config}" --force \\
 mv "{params.outdir}/multiqc_report.html" "{output.html}"
 """
 
-
-# ── make_igv_session ──────────────────────────────────────────────────────────
 
 rule make_igv_session:
     """IGV XML session for a target: every sample BAM, annotated VCF and consensus FASTA."""
@@ -642,30 +617,28 @@ rule make_igv_session:
     output:
         xml = join(_FR, "{target}", "igv_session.{target}.xml"),
     params:
-        rname  = "make_igv_session",
+        rname = "make_igv_session",
         target = "{target}",
     log:
         join(WORKPATH, "logfiles", "report", "make_igv_session.{target}.log"),
     resources:
         partition = allocated("partition", "make_igv_session", cluster),
-        mem       = allocated("mem",       "make_igv_session", cluster),
-        time      = allocated("time",      "make_igv_session", cluster),
+        mem = allocated("mem", "make_igv_session", cluster),
+        time = allocated("time", "make_igv_session", cluster),
     threads: 1
     container:
         config["images"]["python3"]
     shell: """
 set -euo pipefail
 python3 "{input.script}" \\
-    --target  "{params.target}" \\
-    --ref     "{input.fa}" \\
-    --bams    {input.bams} \\
-    --vcfs    {input.vcfs} \\
-    --fastas  {input.fastas} \\
-    --output  "{output.xml}" >> "{log}" 2>&1
+    --target "{params.target}" \\
+    --ref "{input.fa}" \\
+    --bams {input.bams} \\
+    --vcfs {input.vcfs} \\
+    --fastas {input.fastas} \\
+    --output "{output.xml}" >> "{log}" 2>&1
 """
 
-
-# ── final_report ──────────────────────────────────────────────────────────────
 
 rule final_report:
     """Assemble final_report/, the directory to open first: sort aggregates into
@@ -699,8 +672,7 @@ rule final_report:
             join(_FR, "{target}", "aggregate.{target}.variants_matrix.{vset}.tsv"),
             target=TARGETS, vset=["raw", "filtered"],
         ),
-        # Produced by its own rule since the bcftools_merge split; nothing else
-        # names it, so final_report is where it has to be requested.
+        # Nothing else requests the mapping summaries, so final_report must.
         mapping_summaries = expand(
             join(_FR, "{target}", "aggregate.{target}.mapping_summary.tsv"),
             target=TARGETS,
@@ -723,25 +695,25 @@ rule final_report:
         ),
         script = join(WORKPATH, "workflow", "scripts", "collect_final_report.py"),
     output:
-        flag    = join(_FR, ".done"),
+        flag = join(_FR, ".done"),
         summary = join(_FR, "run_summary.tsv"),
     params:
-        rname    = "final_report",
-        outdir   = _FR,
+        rname = "final_report",
+        outdir = _FR,
         workpath = WORKPATH,
-        samples  = SAMPLES,
-        targets  = TARGETS,
-        lineage  = LINEAGE_TARGETS if LINEAGE_TARGETS else [],
-        taxids   = ["%s=%s" % (t, (_TARGET_REFS.get(t) or {}).get("taxid", ""))
-                    for t in TARGETS if (_TARGET_REFS.get(t) or {}).get("taxid")],
-        min_cov  = config["parameters"]["variant_calling"].get("min_genome_coverage", "0.80"),
-        min_depth= config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
+        samples = SAMPLES,
+        targets = TARGETS,
+        lineage = LINEAGE_TARGETS if LINEAGE_TARGETS else [],
+        taxids = ["%s=%s" % (t, (_TARGET_REFS.get(t) or {}).get("taxid", ""))
+                  for t in TARGETS if (_TARGET_REFS.get(t) or {}).get("taxid")],
+        min_cov = config["parameters"]["variant_calling"].get("min_genome_coverage", "0.80"),
+        min_depth = config["parameters"]["variant_calling"].get("consensus_min_depth", "10"),
     log:
         join(WORKPATH, "logfiles", "report", "final_report.log"),
     resources:
         partition = allocated("partition", "final_report", cluster),
-        mem       = allocated("mem",       "final_report", cluster),
-        time      = allocated("time",      "final_report", cluster),
+        mem = allocated("mem", "final_report", cluster),
+        time = allocated("time", "final_report", cluster),
     threads: 1
     container:
         config["images"]["python3"]
@@ -751,12 +723,11 @@ set -euo pipefail
 OUTDIR="{params.outdir}"
 WPATH="{params.workpath}"
 
-# ── Sort aggregates, pull in per-sample results, write run_summary.tsv ─────
 python3 "{input.script}" \
     --workpath "$WPATH" \
-    --outdir   "$OUTDIR" \
-    --samples  {params.samples} \
-    --targets  {params.targets} \
+    --outdir "$OUTDIR" \
+    --samples {params.samples} \
+    --targets {params.targets} \
     --lineage-targets {params.lineage} \
     --target-taxids {params.taxids} \
     --min-genome-coverage {params.min_cov} \

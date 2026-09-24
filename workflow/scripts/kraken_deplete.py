@@ -26,7 +26,7 @@ def subtree_taxids(report_path, roots):
             depth = (len(name) - len(name.lstrip(" "))) // 2
 
             if active_depth is not None and depth <= active_depth:
-                active_depth = None          # left the subtree
+                active_depth = None  # left the subtree
 
             if taxid in roots:
                 active_depth = depth
@@ -45,12 +45,12 @@ def subtree_taxids(report_path, roots):
 # Clades reported for a viral assay. "Unclassified" is its own row, not a viral
 # proxy: the target virus is in the database and comes back classified.
 PROFILE_CLADES = [
-    ("0",     "unclassified"),
+    ("0", "unclassified"),
     ("10239", "Viruses"),
-    ("9606",  "Homo sapiens"),
-    ("2",     "Bacteria"),
-    ("2759",  "Eukaryota"),
-    ("2157",  "Archaea"),
+    ("9606", "Homo sapiens"),
+    ("2", "Bacteria"),
+    ("2759", "Eukaryota"),
+    ("2157", "Archaea"),
 ]
 
 

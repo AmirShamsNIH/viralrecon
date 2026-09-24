@@ -9,22 +9,20 @@ import sys
 
 
 class Colors:
-    """ANSI escape sequences for styling terminal output."""
-    end        = '\33[0m'
-    bold       = '\33[1m'
-    italic     = '\33[3m'
-    url        = '\33[4m'
-    red        = '\33[31m'
-    green      = '\33[32m'
-    yellow     = '\33[33m'
-    cyan       = '\33[96m'
-    white      = '\33[37m'
-    bg_red     = '\33[41m'
-    bg_black   = '\33[40m'
+    end = '\33[0m'
+    bold = '\33[1m'
+    italic = '\33[3m'
+    url = '\33[4m'
+    red = '\33[31m'
+    green = '\33[32m'
+    yellow = '\33[33m'
+    cyan = '\33[96m'
+    white = '\33[37m'
+    bg_red = '\33[41m'
+    bg_black = '\33[40m'
 
 
 def err(*message, **kwargs):
-    """Print to standard error."""
     print(*message, file=sys.stderr, **kwargs)
 
 
@@ -35,7 +33,6 @@ def fatal(*message, **kwargs):
 
 
 def exists(path):
-    """Return True if path exists on the filesystem."""
     return os.path.exists(path)
 
 
@@ -48,23 +45,6 @@ def which(cmd, path=None):
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return True
     return False
-
-
-def require(cmds, suggestions, path=None):
-    """Enforce that each executable in cmds is in $PATH."""
-    c = Colors()
-    error = False
-    for i, cmd in enumerate(cmds):
-        if not which(cmd, path):
-            error = True
-            err(
-                "\n{0}{1}Fatal: '{2}' is not in $PATH and is required at runtime!{3}"
-                "\n  └── Possible fix: module load {4}".format(
-                    c.bg_red, c.white, cmd, c.end, suggestions[i]
-                )
-            )
-    if error:
-        fatal()
 
 
 def permissions(parser, path, *args, **kwargs):
@@ -120,7 +100,6 @@ def check_snakemake_version():
 
 
 def git_commit_hash(repo_path):
-    """Return the HEAD commit hash of the git repo at repo_path."""
     try:
         return subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'],

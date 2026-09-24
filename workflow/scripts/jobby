@@ -4,56 +4,48 @@
 """jobby: display past job information across schedulers. From NIAID NCBR (OpenOmics),
 a public-domain United States Government Work. Usage: jobby [OPTIONS] JOB_ID [JOB_ID ...]"""
 
-# Python standard library
 from __future__ import print_function, division
 import sys, os, subprocess, math, re
 from subprocess import PIPE
-import argparse  # added in python/3.5
-import textwrap  # added in python/3.5
-import tempfile  # added in python/3.5 
+import argparse
+import textwrap
+import tempfile
 
-# Jobby metadata
 __version__ = 'v0.2.1'
 __authors__ = 'Skyler Kuhn'
 __email__ = 'skyler.kuhn@nih.gov'
-__home__  =  os.path.dirname(os.path.abspath(__file__))
+__home__ = os.path.dirname(os.path.abspath(__file__))
 _name = os.path.basename(sys.argv[0])
 _description = 'Will take your job(s)... and display their information!'
 
 
-# Classes
 class Colors():
     """ANSI escape sequences for styling terminal text; end a styled string with
     Colors.end."""
-    # Escape sequence
     end = '\33[0m'
-    # Formatting options
-    bold   = '\33[1m'
+    bold = '\33[1m'
     italic = '\33[3m'
-    url    = '\33[4m'
-    blink  = '\33[5m'
+    url = '\33[4m'
+    blink = '\33[5m'
     higlighted = '\33[7m'
-    # Text Colors
-    black  = '\33[30m'
-    red    = '\33[31m'
-    green  = '\33[32m'
+    black = '\33[30m'
+    red = '\33[31m'
+    green = '\33[32m'
     yellow = '\33[33m'
-    blue   = '\33[34m'
-    pink  = '\33[35m'
-    cyan  = '\33[96m'
+    blue = '\33[34m'
+    pink = '\33[35m'
+    cyan = '\33[96m'
     white = '\33[37m'
-    # Background fill colors
-    bg_black  = '\33[40m'
-    bg_red    = '\33[41m'
-    bg_green  = '\33[42m'
+    bg_black = '\33[40m'
+    bg_red = '\33[41m'
+    bg_green = '\33[42m'
     bg_yellow = '\33[43m'
-    bg_blue   = '\33[44m'
-    bg_pink  = '\33[45m'
-    bg_cyan  = '\33[46m'
+    bg_blue = '\33[44m'
+    bg_pink = '\33[45m'
+    bg_cyan = '\33[46m'
     bg_white = '\33[47m'
 
 
-# Helper Functions 
 def which(cmd, path=None):
     """Return True if cmd is an executable in path (default: $PATH)."""
     if path is None:
@@ -83,14 +75,12 @@ def fatal(*message, **kwargs):
 
 def get_toolkit(tool_list):
     """Return the first tool from the ordered tool_list that is found in $PATH."""
-    best_choice = None 
+    best_choice = None
     for exe in tool_list:
         if which(exe):
             best_choice = exe
             break
-    
-    # Did not find any tools
-    # to potentially use
+
     if not best_choice:
         err(
             'Error: Did not find any tools to get job information!'
@@ -99,7 +89,7 @@ def get_toolkit(tool_list):
             'Expected one of the following tools to be in $PATH:'
             '\t{0}'.format(tool_list)
         )
-    
+
     return best_choice
 
 
@@ -110,7 +100,6 @@ def add_missing(linelist, insertion_dict):
     tmp_list = linelist
     indices = sorted(list(insertion_dict.keys()), reverse=True)
     for i in indices:
-        # A list inserts several values at one index
         if isinstance(insertion_dict[i], list):
             for v in reversed(insertion_dict[i]):
                 tmp_list.insert(i, v)
@@ -120,15 +109,13 @@ def add_missing(linelist, insertion_dict):
 
 
 def convert_size(size_bytes):
-    """Converts bytes to a human readable format.
-    """
-    # Sizes range from B to YiB
+    """Convert bytes to a human readable size."""
     size_name = (
-        "B", "KiB", "MiB", 
-        "GiB", "TiB", "PiB", 
+        "B", "KiB", "MiB",
+        "GiB", "TiB", "PiB",
         "EiB", "ZiB", "YiB"
     )
-    if size_bytes == 0: 
+    if size_bytes == 0:
         return "0B"
     i = int(math.floor(math.log(size_bytes, 1024)))
     p = math.pow(1024, i)
@@ -150,34 +137,29 @@ def to_bytes(size):
         "z": 1024**7, "zib": 1024**7, "zb": 1000**7,
         "y": 1024**8, "yib": 1024**8, "yb": 1000**8
     }
-    
+
     size = size.replace(' ','')
     match = re.search('(?P<size>[0-9.]+)(?P<units>[a-zA-Z]+)$', size)
-    
+
     if match:
         human_units = match.group('units').lower()
         human_units = human_units.lstrip().rstrip()
         scaling_factor = size2bytes[human_units]
         bytes = int(math.ceil(scaling_factor * float(match.group('size'))))
     else:
-        # Cannot parse units into bytes
         return None
-    
+
     return bytes
 
 
 
-# Core logic for getting 
-# job information
 def sge(jobs, threads, tmp_dir):
     """Display SGE job information (not implemented)."""
-    # NOTE: add later for SGE cluster
     pass
 
 
 def uge(jobs, threads, tmp_dir):
     """Display UGE job information (not implemented)."""
-    # NOTE: add later for LOCUS cluster 
     pass
 
 
@@ -195,10 +177,9 @@ def dashboard_cli(jobs, threads=1, tmp_dir=None):
         "user", "std_out", "std_err",
         "work_dir"
     ]
-    
+
     # --tab does not print a header, so print it here
     print('\t'.join(fields))
-    # Display job information
     cmd = subprocess.run(
         'dashboard_cli jobs --archive --tab --joblist {0} --fields {1}'.format(
             ','.join(jobs),
@@ -210,37 +191,34 @@ def dashboard_cli(jobs, threads=1, tmp_dir=None):
         shell=True
     )
 
-    # Check for failure
-    # of the last command
     if cmd.returncode != 0:
         err("\nError: Failed to get job information with 'dashboard_cli'!")
         err('Please see error message below:')
-        fatal('  └── ', cmd.stderr)
+        fatal('  ', cmd.stderr)
 
     print(cmd.stdout.rstrip('\n'))
 
 
 def get_slurm_version():
     """Return SLURM's [major, minor, patch] version from `sacct -V`."""
-    # Get SLURM's sematic version
     cmd = subprocess.run(
-        'sacct -V', 
-        stdout=PIPE, 
-        stderr=PIPE, 
+        'sacct -V',
+        stdout=PIPE,
+        stderr=PIPE,
         universal_newlines=True,
         shell=True
-    ) # slurm 21.08.8-2
-    sematic_version = cmd.stdout.rstrip('\n').split(' ')[-1]   # 21.08.8-2
-    sematic_version = sematic_version.split('-')[0].split('.') # ['21', '08', '8']
-    sematic_version = [int(v) for v in sematic_version]        # [21, 8, 8]
-    
+    )  # slurm 21.08.8-2
+    sematic_version = cmd.stdout.rstrip('\n').split(' ')[-1]  # 21.08.8-2
+    sematic_version = sematic_version.split('-')[0].split('.')  # ['21', '08', '8']
+    sematic_version = [int(v) for v in sematic_version]  # [21, 8, 8]
+
     return sematic_version
 
 
 def sacct(jobs, threads=1, tmp_dir=None):
     """Generic SLURM job information via sacct, portable across clusters. Max memory
     comes from the MaxRSS field of the $SLURM_JOBID.batch lines."""
-    header =  [
+    header = [
         "jobid","jobname","state","partition",
         "gres","cpus","mem","cpu_max","mem_max",
         "timelimit","queued_time","start_time",
@@ -258,11 +236,9 @@ def sacct(jobs, threads=1, tmp_dir=None):
         "user", "workdir"
     ]
 
-    # Get sematic version of SLURM
     major, minor, patch = get_slurm_version()
     if major >= 23:
-        # Output field changed in 23.X,
-        # "Reserved" changed to "Planned"
+        # SLURM 23 renamed the Reserved field to Planned.
         fields = [
             "jobid", "jobname",
             "state", "partition",
@@ -276,30 +252,24 @@ def sacct(jobs, threads=1, tmp_dir=None):
 
     # Missing std_out and std_err
     missing_fields = {15:['-','-']}
-    # Display header information,
     print('\t'.join(header))
-    # Display job information
     cmd = subprocess.run(
         "sacct -j {0} -P --delimiter $'\\t' --format={1}".format(
             ','.join(jobs),
             ','.join(fields)
         ),
-        stdout=PIPE, 
+        stdout=PIPE,
         stderr=PIPE,
         universal_newlines=True,
         shell=True
     )
 
-    # Check for failure
-    # of the last command
     if cmd.returncode != 0:
         err("\nError: Failed to get job information with 'sacct'!")
         err('Please see error message below:')
-        fatal('  └── ', cmd.stderr)
-    
-    # Max memory is in the MaxRSS field of the $SLURM_JOBID.batch lines
+        fatal('  ', cmd.stderr)
+
     j2m = {}
-    # Strip the trailing newline and split into lines
     job_information = cmd.stdout.rstrip('\n').split('\n')
     for i, line in enumerate(job_information):
         if i < 1:
@@ -311,14 +281,12 @@ def sacct(jobs, threads=1, tmp_dir=None):
             maxmem = linelist[7].replace(' ', '')
             mem_bytes = to_bytes(maxmem)
             if not mem_bytes:
-                # Could not convert max_mem into bytes
                 j2m[jobid] = '-'
-                continue   # goto next line
+                continue
 
             human_readable_mem = convert_size(mem_bytes)
             j2m[jobid] = human_readable_mem
 
-    # Display the results
     for i, line in enumerate(job_information):
         if i < 1:
             # skip over header
@@ -341,7 +309,6 @@ def sacct(jobs, threads=1, tmp_dir=None):
 
 def slurm(jobs, threads, tmp_dir):
     """Display SLURM job information."""
-    # Prefer the Biowulf-specific dashboard_cli, falling back to sacct
     tool_priority = ['dashboard_cli', 'sacct']
     job_tool = get_toolkit(tool_priority)
     # eval() turns the tool name into its handler function
@@ -350,26 +317,19 @@ def slurm(jobs, threads, tmp_dir):
 
 def jobby(args):
     """Dispatch to the handler for the requested job scheduler."""
-    # Get command line options
     abstract_handler = None
-    job_ids   = args.JOB_ID
+    job_ids = args.JOB_ID
     scheduler = args.scheduler
-    threads   = args.threads
-    tmp_dir   = args.tmp_dir
+    threads = args.threads
+    tmp_dir = args.tmp_dir
 
-    # Set handler for each 
-    # supported scheduler    
     if scheduler == 'slurm':
         abstract_handler = slurm
     else:
-        # Unsupported job scheduler,
-        # needs to be implemented
         fatal(
             'Error: "{0}" is an unsupported job scheduler!'.format(scheduler)
         )
-    
-    # Display job(s) information 
-    # to standard output
+
     abstract_handler(
         jobs=job_ids,
         threads=threads,
@@ -377,21 +337,17 @@ def jobby(args):
     )
 
 
-# Parse command-line arguments
 def parsed_arguments(name, description):
     """Parse command-line arguments. Help for required options is suppressed and kept
     in the usage statement, so update it when adding an argument."""
-    # Add styled name and description
     c = Colors
     styled_name = "{0}{1}{2}{3}{4}".format(
-        c.bold, c.bg_black, 
+        c.bold, c.bg_black,
         c.cyan, name, c.end
     )
     description = "{0}{1}{2}".format(c.bold, description, c.end)
     temp = tempfile.gettempdir()
 
-    # Please note: update the usage statement
-    # below if a new option is added!
     usage_statement = textwrap.dedent("""\
         {0}: {1}
 
@@ -402,154 +358,112 @@ def parsed_arguments(name, description):
                 <JOB_ID [JOB_ID ...]>
 
         {3}{4}Description:{5}
-          {2} will take your past jobs and display their job information 
-        in a standardized format. Why???! We have pipelines running on several
-        different clusters (using different job schedulers). {2} centralizes 
-        and abstracts the process of querying different job schedulers within
-        a unified command-line interface. 
-        
-          For each supported scheduler, jobby will determine the best method
-        on a given target system for getting job information to return to the 
-        user in a common output format.
+          {2} displays information about past jobs in one tab-separated
+        format, whichever scheduler ran them. On SLURM it uses dashboard_cli
+        when available and falls back to sacct.
 
         {3}{4}Required Positional Arguments:{5}
           <JOB_ID [JOB_ID ...]>
-                               Identiers of past jobs. One or more JOB_IDs 
-                               can be provided. Multiple JOB_IDs should be 
-                               seperated by a space. Information for each 
-                               of the JOB_IDs will be displayed to standard 
-                               output. Please see example section below for 
-                               more information.
+                                Identifiers of past jobs, separated by spaces.
 
         {3}{4}Options:{5}
-          -s,--scheduler {{slurm | ...}}  
+          -s, --scheduler {{slurm | ...}}
                                 @Default: slurm
-                                Job scheduler. Defines the job scheduler 
-                                of the target system. Additional support
-                                for more schedulers coming soon! 
+                                Job scheduler of the target system. Only
+                                slurm is supported.
                                   @Example: --scheduler slurm
-          -n, --threads THREADS     
+          -n, --threads THREADS
                                 @Default: 1
-                                Number of threads to query the scheduler 
-                                in parallel.
-                                  @Example: --threads: 8
-          -t, --tmp-dir TMP_DIR 
+                                Accepted for compatibility; currently unused.
+                                  @Example: --threads 8
+          -t, --tmp-dir TMP_DIR
                                 @Default: {7}/
-                                Temporary directory. Path on the filesystem 
-                                for writing temporary output files. Ideally, 
-                                this path should point to a dedicated space 
-                                on the filesystem for writing tmp files. If 
-                                you need to inject a variable into this path 
-                                that should NOT be expanded, please quote the 
-                                options value in single quotes. The default 
-                                location of this option is set to the system
-                                default via the $TMPDIR environment variable.
+                                Accepted for compatibility; currently unused.
                                   @Example: --tmp-dir '/scratch/$USER/'
-          
+
           -h, --help            Shows help and usage information and exits.
                                   @Example: --help
-          
+
           -v, --version         Displays version information and exits.
                                   @Example: --version
         """.format(styled_name, description, name, c.bold, c.url, c.end, c.italic, temp))
 
-    # Display example usage in epilog
     run_epilog = textwrap.dedent("""\
         {2}{3}Example:{4}
-        # Please avoid running jobby 
-        # on a cluster's head node!
         ./jobby -s slurm  -n 4 18627542 13627516 58627597 48627666
 
         {2}{3}Version:{4}
           {1}
         """.format(name, __version__, c.bold, c.url, c.end))
 
-    # Create a top-level parser
     parser = argparse.ArgumentParser(
-        usage = argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description = usage_statement,
-        epilog  = run_epilog,
+        description=usage_statement,
+        epilog=run_epilog,
         add_help=False
     )
 
-    # Required Positional Arguments
-    # List of JOB_IDs, 1 ... N_JOB_IDS
     parser.add_argument(
         'JOB_ID',
-        nargs = '+',
-        help = argparse.SUPPRESS
-    )
-
-    # Options
-    # Adding verison information
-    parser.add_argument(
-        '-v', '--version', 
-        action  = 'version', 
-        version = '%(prog)s {}'.format(__version__),
-        help = argparse.SUPPRESS
-    )
-
-    # Add custom help message
-    parser.add_argument(
-        '-h', '--help', 
-        action='help', 
+        nargs='+',
         help=argparse.SUPPRESS
     )
 
-    # Base directory to write 
-    # temporary/intermediate files 
+    parser.add_argument(
+        '-v', '--version',
+        action='version',
+        version='%(prog)s {}'.format(__version__),
+        help=argparse.SUPPRESS
+    )
+
+    parser.add_argument(
+        '-h', '--help',
+        action='help',
+        help=argparse.SUPPRESS
+    )
+
     parser.add_argument(
         '-t', '--tmp-dir',
-        type = str,
-        required = False,
-        default = temp,
-        help = argparse.SUPPRESS
+        type=str,
+        required=False,
+        default=temp,
+        help=argparse.SUPPRESS
     )
 
-    # Threads for the main process (local rules or local mode only)
     parser.add_argument(
         '-n', '--threads',
-        type = int,
-        required = False,
-        default = 1,
-        help = argparse.SUPPRESS
+        type=int,
+        required=False,
+        default=1,
+        help=argparse.SUPPRESS
     )
 
-    # Job scheduler to query (only SLURM for now)
     parser.add_argument(
         '-s', '--scheduler',
-        type = lambda s: str(s).lower(),
-        required = False,
-        default = "slurm",
-        choices = ['slurm'],
-        help = argparse.SUPPRESS
+        type=lambda s: str(s).lower(),
+        required=False,
+        default="slurm",
+        choices=['slurm'],
+        help=argparse.SUPPRESS
     )
 
-    # Define handlers for each sub-parser
-    parser.set_defaults(func = jobby)
-    # Parse command-line args
+    parser.set_defaults(func=jobby)
     args = parser.parse_args()
 
     return args
 
 
 def main():
-    # Sanity check for usage
     if len(sys.argv) == 1:
-        # Nothing was provided
         fatal('Invalid usage: {} [-h] [--version] ...'.format(_name))
-    
-    # Collect args for sub-command
+
     args = parsed_arguments(
-        name = _name, 
-        description = _description
+        name=_name,
+        description=_description
     )
-    
-    # Display version information
+
     err('{} ({})'.format(_name, __version__))
-    # Mediator method to call the 
-    # default handler function
     args.func(args)
 
 

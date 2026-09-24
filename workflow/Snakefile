@@ -9,7 +9,6 @@ from snakemake.utils import validate
 
 from scripts.common import allocated, provided, references, str_bool
 
-# ── Global config ────────────────────────────────────────────────────────────
 configfile: "config.json"
 
 # Validate config first so a bad key fails at DAG build, not inside a rule. A missing
@@ -18,17 +17,17 @@ try:
     validate(config, join(workflow.basedir, "schemas", "config.schema.yaml"))
 except WorkflowError:
     raise
-except Exception as _exc:                     # validation unavailable, not failed
+except Exception as _exc:  # validation unavailable, not failed
     print("config schema not checked: {}".format(_exc))
 
-WORKPATH  = config["options"]["output"]
-SAMPLES   = config["samples"]
-PLATFORM  = config["options"].get("platform", "BIOWULF")
-PAIRED    = config["project"]["paired"]
+WORKPATH = config["options"]["output"]
+SAMPLES = config["samples"]
+PLATFORM = config["options"].get("platform", "BIOWULF")
+PAIRED = config["project"]["paired"]
 
-# TARGETS: use the explicit list written by run.py (subset or all of genome.json)
+# run.py writes the selected targets; with none, every genome.json target runs.
 _all_targets = list(config["references"]["target"][PLATFORM].keys())
-_selected    = config.get("targets", None)
+_selected = config.get("targets", None)
 if _selected:
     TARGETS = [t for t in _selected if t in _all_targets]
     _missing = [t for t in _selected if t not in _all_targets]
@@ -68,25 +67,20 @@ NEXTCLADE_TARGETS = [t for t in TARGETS if nextclade_dataset_for(t)]
 # Separate name for code that only asks whether a target has lineage output.
 LINEAGE_TARGETS = list(NEXTCLADE_TARGETS)
 
-# ── Cluster resource map ──────────────────────────────────────────────────────
 with open(join(WORKPATH, "config", "cluster.json")) as fh:
     cluster = json.load(fh)
 
-# ── Local rules (run in master job, never submitted to SLURM) ─────────────────
-# Only custom_virmapDB, which is nothing but `ln -sf`.
+# custom_virmapDB only creates symlinks, so it is not worth a SLURM job.
 localrules:
-    custom_virmapDB,       # just ln -sf symlinks
+    custom_virmapDB,
 
-# ── Final pipeline outputs ────────────────────────────────────────────────────
 rule all:
     input:
-        # Build environment (reference DB)
         expand(
             join(WORKPATH, "ref_db", "{target}", "{target}.fa"),
             target=TARGETS,
         ),
-        # Pre-process: Kraken2 screen, depletion summary and Krona chart (krona_plot is
-        # its own rule, so its output is requested here).
+        # krona_plot is a leaf rule, so its output is requested here.
         expand(
             join(WORKPATH, "{sample}", "pre_process", "kraken2",
                  "{sample}.kraken2_decon.composition.tsv"),
@@ -97,20 +91,17 @@ rule all:
                  "{sample}.kraken2_decon.krona.html"),
             sample=SAMPLES,
         ),
-        # Pre-process: host/phiX-depleted FASTQs
         expand(
             join(WORKPATH, "{sample}", "pre_process", "{sample}.kraken2_decon.R1.fastq.gz"),
             sample=SAMPLES,
         ),
-        # Alignment: per-sample per-target BAMs
         expand(
             join(WORKPATH, "{sample}", "alignment", "{target}",
                  "{sample}.{target}.bowtie2_map.bam"),
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Variant calling: per-sample annotated VCFs and the variants table, which is its
-        # own rule and so requested here.
+        # gatk_variants_table is a leaf rule, so its table is requested here.
         expand(
             join(WORKPATH, "{sample}", "variant_calling", "{target}",
                  "{sample}.{target}.freebayes_haplotypecaller.snpeff.vcf.gz"),
@@ -123,38 +114,33 @@ rule all:
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Alignment: mosdepth coverage per sample × target
         expand(
             join(WORKPATH, "{sample}", "alignment", "{target}",
                  "mosdepth", "{sample}.{target}.mosdepth.summary.txt"),
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Alignment: Picard CollectMultipleMetrics per sample × target
         expand(
             join(WORKPATH, "{sample}", "alignment", "{target}",
                  "picard", "{sample}.{target}.insert_size_metrics"),
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Variant calling: bcftools stats per sample × target
         expand(
             join(WORKPATH, "{sample}", "variant_calling", "{target}",
                  "{sample}.{target}.bcftools_stats.txt"),
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Variant calling: per-sample consensus FASTA per target
         expand(
             join(WORKPATH, "{sample}", "variant_calling", "{target}",
                  "{sample}.{target}.consensus.fa"),
             sample=SAMPLES,
             target=TARGETS,
         ),
-        # Final report: .done depends on every aggregate output in final_report/{target}/.
+        # final_report/.done depends on every aggregate output.
         join(WORKPATH, "final_report", ".done"),
-        # Lineage: nextclade for any reference carrying a dataset. A target
-        # without one simply produces no lineage output.
+        # A target without a Nextclade dataset produces no lineage output.
         expand(
             join(WORKPATH, "{sample}", "lineage", "{target}",
                  "{sample}.{target}.nextclade.tsv"),
@@ -162,7 +148,6 @@ rule all:
             target=NEXTCLADE_TARGETS,
         ),
 
-# ── Rule imports ──────────────────────────────────────────────────────────────
 include: join("rules", "common.smk")
 include: join("rules", "hooks.smk")
 include: join("rules", "build_environment.smk")

@@ -18,7 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install snakemake
-        run: pip install --quiet 'snakemake==7.32.4' pyyaml
+        run: pip install --quiet 'snakemake==7.32.4' 'pulp<2.8' pyyaml
 
       - name: Config files are valid JSON
         run: |
@@ -56,7 +56,7 @@ jobs:
       - name: No module load outside the Singularity bootstrap
         run: |
           if grep -rn "module_load\|module load" workflow/rules/ src/*.py \
-               | grep -v "singularity" | grep -v "^\s*#"; then
+               | grep -v "singularity" | grep -vE "^[^:]+:[0-9]+:\s*#"; then
             echo "module load found outside the Singularity bootstrap"; exit 1
           fi
           echo "no stray module load"

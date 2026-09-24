@@ -10,7 +10,7 @@ import sys
 from os.path import exists, join
 
 import matplotlib
-matplotlib.use("Agg")            # no display on a compute node
+matplotlib.use("Agg")  # no display on a compute node
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Patch
@@ -18,11 +18,11 @@ import numpy as np
 
 # snpEff impact -> colour. Ordered worst-first so legends read sensibly.
 IMPACT_COLOUR = {
-    "HIGH":     "#c0392b",
+    "HIGH": "#c0392b",
     "MODERATE": "#e67e22",
-    "LOW":      "#27ae60",
+    "LOW": "#27ae60",
     "MODIFIER": "#7f8c8d",
-    "":         "#7f8c8d",
+    "": "#7f8c8d",
 }
 
 DPI = 150
@@ -104,8 +104,6 @@ def genome_length(fai):
     return int(first[1]) if len(first) > 1 else 0
 
 
-# ── figure 1: per-sample genome overview ────────────────────────────────────
-
 def fig_genome_overview(sample, target, work, outdir, rows, glen, min_depth):
     al = join(work, sample, "alignment", target)
     vc = join(work, sample, "variant_calling", target)
@@ -151,7 +149,7 @@ def fig_genome_overview(sample, target, work, outdir, rows, glen, min_depth):
                          rotation=90, ha="center", va="bottom",
                          xytext=(0, 3), textcoords="offset points")
 
-    axv.set_ylim(0, 155)   # headroom so rotated AA labels are not clipped
+    axv.set_ylim(0, 155)  # headroom so rotated AA labels are not clipped
     axv.set_ylabel("alt %")
     axv.set_xlabel("position (bp)")
     if glen:
@@ -178,8 +176,6 @@ def fig_genome_overview(sample, target, work, outdir, rows, glen, min_depth):
     return out
 
 
-# ── figure 2: variant x sample heatmap ──────────────────────────────────────
-
 def fig_variant_heatmap(samples, target, outdir, rows):
     if not rows:
         return None
@@ -196,7 +192,7 @@ def fig_variant_heatmap(samples, target, outdir, rows):
 
     h = max(3.0, 0.32 * len(rows) + 1.6)
     fig, ax = plt.subplots(figsize=(max(6.0, 1.5 + 1.1 * len(samples)), h))
-    cmap.set_bad("#b0bec5")           # not called: grey, never 0
+    cmap.set_bad("#b0bec5")  # not called: grey, never 0
     im = ax.imshow(np.ma.masked_invalid(grid), aspect="auto", cmap=cmap,
                    vmin=0, vmax=100)
 
@@ -222,8 +218,6 @@ def fig_variant_heatmap(samples, target, outdir, rows):
     plt.close(fig)
     return out
 
-
-# ── figure 3: coverage of every sample together ─────────────────────────────
 
 def fig_coverage_comparison(samples, target, work, outdir, glen, min_depth):
     fig, ax = plt.subplots(figsize=(13, 4.2))
@@ -256,8 +250,6 @@ def fig_coverage_comparison(samples, target, work, outdir, glen, min_depth):
     return out
 
 
-# ── figure 4: library composition ───────────────────────────────────────────
-
 def fig_composition(samples, work, outdir, target_taxids):
     """Library composition per sample from the Kraken2 composition TSVs (run_summary
     would make the DAG cyclic). The target is split out of Viruses, not counted twice."""
@@ -284,11 +276,14 @@ def fig_composition(samples, work, outdir, target_taxids):
         d = per[s_]
         # Each target's own taxid, so this is not hardcoded to one virus.
         tv = sum(num(d, t) for t in target_taxids) if target_taxids else 0.0
-        vir = num(d, "10239")              # Viruses superkingdom: a superset
+        vir = num(d, "10239")  # Viruses superkingdom: a superset
         hu = num(d, "9606")
         ov = max(0.0, vir - tv)
         rest = max(0.0, 100.0 - tv - ov - hu)
-        target.append(tv); other_viral.append(ov); human.append(hu); other.append(rest)
+        target.append(tv)
+        other_viral.append(ov)
+        human.append(hu)
+        other.append(rest)
 
     if not any(target) and not any(other_viral) and not any(human):
         return None
@@ -297,10 +292,10 @@ def fig_composition(samples, work, outdir, target_taxids):
     x = np.arange(len(order))
     bottom = np.zeros(len(order))
     for vals, label, colour in (
-            (target,      "target virus",        "#2ecc71"),
-            (other_viral, "other viral",         "#16a085"),
-            (human,       "human",               "#e67e22"),
-            (other,       "other / unclassified", "#bdc3c7")):
+            (target, "target virus", "#2ecc71"),
+            (other_viral, "other viral", "#16a085"),
+            (human, "human", "#e67e22"),
+            (other, "other / unclassified", "#bdc3c7")):
         vals = np.array(vals)
         ax.bar(x, vals, bottom=bottom, label=label, color=colour, width=0.72)
         bottom += vals
