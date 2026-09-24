@@ -119,11 +119,10 @@ def _sub_build(sub):
                    help="Local FASTA file to use instead of downloading from NCBI.")
     p.add_argument("--annotation",  default=None, metavar="GFF/GTF",
                    help="Local GFF3 or GTF annotation file to use instead of downloading.")
-    p.add_argument("--nextclade-dataset", default=None, metavar="NAME",
-                   help="Nextclade dataset for this reference. By default it is "
-                        "matched from the FASTA with `nextclade sort` and skipped "
-                        "when nothing matches; give a name to override (see "
-                        "resources/nextclade_datasets.tsv) or 'none' to opt out.")
+    p.add_argument("--no-nextclade", action="store_true", default=False,
+                   help="Do not attach a Nextclade dataset. By default one is "
+                        "matched from the FASTA with `nextclade sort`, and lineage "
+                        "is skipped when nothing matches.")
     p.add_argument("--notes",       default=None, metavar="TEXT",
                    help="Curated note about this reference, stored in "
                         "genome.json and echoed whenever a run selects the "

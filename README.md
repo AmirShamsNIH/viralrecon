@@ -137,6 +137,7 @@ about a hundred more. `resources/nextclade_datasets.tsv` lists them all.
   `nextclade sort` on the reference FASTA, which compares it against every published
   dataset. When all records match one dataset, it lands in `<reference>/nextclade/` and
   its path is recorded in `genome.json`. When nothing matches, lineage is skipped.
+  There is nothing to choose: `--no-nextclade` is the only switch, to opt out.
 - **The dataset belongs to the reference, not the run.** Nextclade runs on every target
   that carries one.
 - **A target without a dataset is skipped, never guessed.** Describing a sample against
@@ -272,8 +273,7 @@ module load singularity
 export http_proxy=http://dtn20-e0:3128
 export https_proxy=http://dtn20-e0:3128
 
-$VIRALRECON build --virus SARS --accession NC_045512.2 --output "$REF" \
-    --nextclade-dataset sars-cov-2
+$VIRALRECON build --virus SARS --accession NC_045512.2 --output "$REF"
 
 $VIRALRECON run --input /path/to/reads/*_R[12]_001.fastq.gz \
     --output "$OUT" --genome "$REF/genome.json" \
@@ -430,20 +430,17 @@ file-by-file and skipped if complete, or completed if not.
 ```
 
 A Nextclade dataset is matched to the reference automatically (§2.1, *Lineage*). A
-segmented reference whose segments match different datasets, or a virus with no dataset,
-is skipped with a message. Override the match with a name from
-`resources/nextclade_datasets.tsv`, or opt out:
+virus with no dataset, or a segmented reference whose segments match different datasets,
+is skipped with a message. To build a reference without one:
 
 ```bash
-./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs \
-                   --nextclade-dataset nextstrain/sars-cov-2/BA.2.86
-./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs \
-                   --nextclade-dataset none
+./viralrecon build --virus SARS --accession NC_045512.2 --output /data/refs --no-nextclade
 ```
 
-Rerunning `build` on an existing reference that has no dataset matches one then. On
-Biowulf this step needs the proxy set (§2.5); BigSky and Skyline reach the internet
-directly. Refresh the catalogue with `nextclade dataset list --json`.
+On an existing reference, `--no-nextclade` removes the dataset, and a plain rebuild of a
+reference without one matches it then. On Biowulf this step needs the proxy set (§2.5);
+BigSky and Skyline reach the internet directly. `resources/nextclade_datasets.tsv` lists
+the catalogue; refresh it with `nextclade dataset list --json`.
 
 Record curated knowledge about a reference: the kind nothing can be derived from the
 files themselves. The note is stored in `genome.json`, echoed whenever a run selects that
@@ -657,8 +654,8 @@ reference in IGV, the fastest way to eyeball a specific variant.
 
 An absent output can mean a stage did not apply, which is not a warning:
 
-- **No `lineage/` directory**: no Nextclade dataset matched the reference at build time.
-  If one exists for that virus, name it with `viralrecon build --nextclade-dataset`.
+- **No `lineage/` directory**: no Nextclade dataset matched the reference at build time,
+  or it was built with `--no-nextclade`.
 - **A target missing downstream stages entirely**: mapping fell below `min_mapped_reads`,
   and `qc_status` says `LOW_MAPPED_READS`. One weak reference does not stop the others.
 

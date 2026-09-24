@@ -255,7 +255,7 @@ footer{border-top:1px solid var(--rule);padding:24px 0 40px;font-size:13px;color
       <div class="stage">
         <div class="prose">
           <p>Before any sample is touched, each reference genome is prepared once and registered. A reference can come straight from NCBI by accession, or from a laboratory's own FASTA and annotation, useful when the relevant comparison is a local isolate rather than the historical type strain.</p>
-          <p>The build downloads the genome and gene annotation, builds the alignment index, the sequence dictionary and a protein-effect database, and records the virus's NCBI taxonomy ID. Optionally it fetches a Nextclade dataset for that virus. All of this is written into a single registry, <code>genome.json</code>, which accumulates references across projects.</p>
+          <p>The build downloads the genome and gene annotation, builds the alignment index, the sequence dictionary and a protein-effect database, and records the virus's NCBI taxonomy ID. It also matches the virus to a Nextclade dataset automatically, when one exists. All of this is written into a single registry, <code>genome.json</code>, which accumulates references across projects.</p>
           <p>A user-supplied genome and annotation are checked against each other before anything is built. In testing this caught an annotation file in which one gene sat on a sequence name that did not exist in the genome, an error that would otherwise have silently removed that gene from every protein-effect call.</p>
         </div>
         <aside class="spec">

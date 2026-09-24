@@ -430,18 +430,18 @@ def _match_nextclade_dataset(fasta, genome_dir, log):
         print("    no Nextclade dataset matches this reference; lineage skipped")
         return None
     if len(names) > 1 or len(matched) < len({r["seqName"] for r in rows}):
-        print("    records do not all match one dataset ({}); lineage skipped."
-              "\n    Pass --nextclade-dataset NAME to choose one."
+        print("    records do not all match one dataset ({}); lineage skipped"
               .format(", ".join(names)))
         return None
     print("    matched {}".format(names[0]))
     return names[0]
 
 
-def _choose_nextclade_dataset(requested, fasta, genome_dir, log):
-    """--nextclade-dataset wins and `none` opts out; otherwise match automatically."""
-    if requested:
-        return None if requested.lower() == "none" else requested
+def _choose_nextclade_dataset(no_nextclade, fasta, genome_dir, log):
+    """The automatically matched dataset, or None when --no-nextclade opts out."""
+    if no_nextclade:
+        print("  Nextclade: skipped (--no-nextclade)")
+        return None
     return _match_nextclade_dataset(fasta, genome_dir, log)
 
 
@@ -529,8 +529,8 @@ def _update_genome_json(genome_json_path, canonical_name, platforms,
                 entry["notes"] = prior["notes"]
         elif notes != "":
             entry["notes"] = notes
-        # Carried forward like notes: a rebuild that does not re-specify the
-        # dataset should not silently drop a target's clade-calling ability.
+        # Carried forward like notes, so a failed match cannot drop a dataset;
+        # "" (from --no-nextclade) clears it.
         if nextclade_dataset is None:
             if prior.get("nextclade_dataset"):
                 entry["nextclade_dataset"] = prior["nextclade_dataset"]
@@ -631,7 +631,7 @@ def build(sub_args, repo_path):
     genome_json = os.path.join(outdir, "genome.json")
     force = getattr(sub_args, "force", False)
 
-    nc_request = getattr(sub_args, "nextclade_dataset", None)
+    no_nc = getattr(sub_args, "no_nextclade", False)
 
     # ── Already built? Verify, then skip ────────────────────────────────────
     # A registry entry is not proof the files exist, so check both before skipping.
@@ -671,17 +671,21 @@ def build(sub_args, repo_path):
         # Likewise add a missing Nextclade dataset, which complete files cannot
         # imply and later builds would otherwise never add.
         nc_path = None
-        if not _entry.get("nextclade_dataset"):
+        if no_nc and _entry.get("nextclade_dataset"):
+            print("\n  --no-nextclade: removing the nextclade dataset from '{}'"
+                  .format(canonical_name))
+            nc_path = ""
+        elif not _entry.get("nextclade_dataset"):
             _log = os.path.join(genome_dir, "build_index.log")
             nc_dataset = _choose_nextclade_dataset(
-                nc_request, os.path.join(genome_dir, "{}.fa".format(canonical_name)),
+                no_nc, os.path.join(genome_dir, "{}.fa".format(canonical_name)),
                 genome_dir, _log)
             if nc_dataset:
                 print("\n  backfilling nextclade dataset '{}' for '{}'"
                       .format(nc_dataset, canonical_name))
                 nc_path = _fetch_nextclade_dataset(nc_dataset, genome_dir, _log)
 
-        if taxid or nc_path:
+        if taxid or nc_path is not None:
             _update_genome_json(
                 genome_json, canonical_name, platforms,
                 os.path.join(genome_dir, "{}.fa".format(canonical_name)),
@@ -728,9 +732,9 @@ def build(sub_args, repo_path):
     if not no_index:
         _build_index(canonical_name, genome_dir)
 
-    nc_path = None
+    nc_path = "" if no_nc else None
     _log = os.path.join(genome_dir, "build_index.log")
-    nc_dataset = _choose_nextclade_dataset(nc_request, fasta_path, genome_dir, _log)
+    nc_dataset = _choose_nextclade_dataset(no_nc, fasta_path, genome_dir, _log)
     if nc_dataset:
         nc_path = _fetch_nextclade_dataset(nc_dataset, genome_dir, _log)
 
