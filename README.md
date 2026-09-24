@@ -363,17 +363,17 @@ Pass `--platform SKYLINE` to both `build` and `run`. Skyline (NIAID, submit host
 `ai-hpcsubmit1.niaid.nih.gov`) has its own `/data`, separate from BigSky's, so none of
 the BigSky paths exist there.
 
-**The layout.** The clone sits with the lab's other pipelines, and everything it needs
-that is not a shared database sits in one sibling directory:
+**The layout.** The shared install follows the other pipelines in `/data/openomics/prod`:
+one directory per release, a `latest` link, and the images and Krona taxonomy beside
+them, shared by every release:
 
 ```
-/data/rtb_grs/internal/pipeline/
-├── viralrecon/              the clone
+/data/openomics/prod/viralrecon/
+├── v0.1.0/                 the clone
+├── latest -> v0.1.0
 └── viralrecon_resources/
     ├── singularity/         the images  ({repo_parent}/viralrecon_resources/singularity)
-    ├── krona/taxonomy/      Krona taxonomy, copied from Biowulf
-    ├── references/          `viralrecon build --output` goes here
-    └── test_data/           the validation FASTQs
+    └── krona/taxonomy/      Krona taxonomy, copied from Biowulf
 ```
 
 **What differs**
@@ -415,7 +415,7 @@ the references and runs the pipeline. Copy the one for your cluster into your pr
 set `WORKDIR`, `FASTQ_DIR` and one `build` line per reference, and submit it from there:
 
 ```bash
-cp /data/openomics/viralrecon/execution/skyline.sh /data/<group>/<project>/
+cp /data/openomics/prod/viralrecon/latest/execution/skyline.sh /data/<group>/<project>/
 cd /data/<group>/<project> && sbatch skyline.sh
 ```
 

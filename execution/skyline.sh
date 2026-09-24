@@ -7,7 +7,7 @@
 #SBATCH --output=viralrecon.%j.log
 set -euo pipefail
 
-VIRALRECON=/data/openomics/viralrecon/viralrecon
+VIRALRECON=/data/openomics/prod/viralrecon/latest/viralrecon
 WORKDIR=/data/CHANGE_ME/my_project
 FASTQ_DIR=$WORKDIR/fastq
 REF=$WORKDIR/target_reference
