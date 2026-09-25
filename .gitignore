@@ -33,5 +33,5 @@ Thumbs.db
 .idea/
 
 # Test outputs
-.tests/output/
+.tests/
 "{log}"

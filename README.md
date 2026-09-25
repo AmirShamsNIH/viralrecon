@@ -9,7 +9,6 @@
 <a href="#"><img alt="Version" src="https://img.shields.io/badge/version-0.1.0-blue"></a>
 <a href="#22-dependencies"><img alt="Snakemake" src="https://img.shields.io/badge/snakemake-%E2%89%A57.0-brightgreen"></a>
 <a href="#23-containers"><img alt="Singularity" src="https://img.shields.io/badge/singularity-only-%23663399"></a>
-<a href=".github/workflows/main.yaml"><img alt="CI" src="https://img.shields.io/badge/CI-dry--run%20DAG-lightgrey"></a>
 <a href="#"><img alt="Platform" src="https://img.shields.io/badge/platform-Biowulf%20%7C%20BigSky%20%7C%20Skyline-orange"></a>
 
 <h3>
@@ -687,8 +686,9 @@ existing run directory until you pass `--overwrite-pipeline-template`.
 1. Fork the repository.
 2. Create a feature branch.
 3. Make your changes: give any new rule a `container:` directive, never `module load`.
-4. Run `.tests/dryrun.sh` to confirm the DAG still resolves. This is required: a
-   container split can orphan a rule, and the DAG omits it without an error.
+4. Run `viralrecon run ... --dry-run` on test data to confirm the DAG still resolves.
+   This is required: a container split can orphan a rule, and the DAG omits it
+   without an error.
 5. Open a pull request.
 
 ---
