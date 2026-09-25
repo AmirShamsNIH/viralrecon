@@ -345,12 +345,18 @@ zcat "{input.per_base}" | awk -v d={params.min_depth} 'BEGIN {{OFS = "\t"}}
     }}' "{input.fai}" - > "{output.mask}" 2>> "{log}"
 echo "masked $(awk '{{s+=$3-$2}} END{{print s+0}}' "{output.mask}") bases below {params.min_depth}x" >> "{log}"
 
+# FreeBayes writes an ambiguous reference base (R, Y, M...) as N, which consensus
+# rejects as a REF mismatch, so build against a copy with those codes set to N.
+REF_FA="{output.consensus}.ref.fa"
+sed '/^>/!s/[^ACGTNacgtn]/N/g' "{input.fa}" > "$REF_FA"
+
 bcftools consensus {params.extra} \
-    --fasta-ref "{input.fa}" \
+    --fasta-ref "$REF_FA" \
     --sample "{params.sample}" \
     --mask "{output.mask}" --mask-with N \
     --output "{output.consensus}" \
     "{input.vcf}" >> "{log}" 2>&1
+rm -f "$REF_FA" "$REF_FA.fai"
 
 # Header is sample.target, the key other tools derive for MultiQC, so each sample is
 # one row. Snakemake formats shell comments too, so avoid braces here.
